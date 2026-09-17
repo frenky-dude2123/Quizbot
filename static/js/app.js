@@ -1,350 +1,701 @@
-import { api, setAuthToken } from './api.js';
+import { api } from './api.js';
 
-const DIFFICULTY_CONFIG = {
-  easy: { label: 'Easy', class: 'easy' },
-  medium: { label: 'Medium', class: 'medium' },
-  hard: { label: 'Hard', class: 'hard' },
-};
+/* ==========================================================================
+   COSMIC SOUND SYNTHESIZER (Web Audio API - Zero External Asset Dependency)
+   ========================================================================== */
+class CosmicAudio {
+  constructor() {
+    this.ctx = null;
+    this.muted = localStorage.getItem('quizbot_audio_muted') === 'true';
+  }
 
+  init() {
+    if (!this.ctx) {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (AudioCtx) {
+        this.ctx = new AudioCtx();
+      }
+    }
+    if (this.ctx && this.ctx.state === 'suspended') {
+      this.ctx.resume();
+    }
+  }
+
+  toggleMute() {
+    this.muted = !this.muted;
+    localStorage.setItem('quizbot_audio_muted', this.muted);
+    return this.muted;
+  }
+
+  playClick() {
+    if (this.muted) return;
+    this.init();
+    if (!this.ctx) return;
+    try {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(600, this.ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(800, this.ctx.currentTime + 0.04);
+      gain.gain.setValueAtTime(0.08, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.04);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start();
+      osc.stop(this.ctx.currentTime + 0.05);
+    } catch {
+      // ignore audio errors
+    }
+  }
+
+  playCorrect() {
+    if (this.muted) return;
+    this.init();
+    if (!this.ctx) return;
+    try {
+      const notes = [523.25, 659.25, 783.99]; // C5, E5, G5 major triad
+      notes.forEach((freq, i) => {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        const startTime = this.ctx.currentTime + i * 0.07;
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, startTime);
+        gain.gain.setValueAtTime(0, startTime);
+        gain.gain.linearRampToValueAtTime(0.12, startTime + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.35);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(startTime);
+        osc.stop(startTime + 0.36);
+      });
+    } catch {
+      // ignore
+    }
+  }
+
+  playWrong() {
+    if (this.muted) return;
+    this.init();
+    if (!this.ctx) return;
+    try {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(180, this.ctx.currentTime);
+      osc.frequency.linearRampToValueAtTime(110, this.ctx.currentTime + 0.25);
+      gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.25);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start();
+      osc.stop(this.ctx.currentTime + 0.26);
+    } catch {
+      // ignore
+    }
+  }
+
+  playVictory() {
+    if (this.muted) return;
+    this.init();
+    if (!this.ctx) return;
+    try {
+      const fanfare = [392.00, 523.25, 659.25, 783.99, 1046.50];
+      fanfare.forEach((freq, i) => {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        const start = this.ctx.currentTime + i * 0.08;
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, start);
+        gain.gain.setValueAtTime(0.15, start);
+        gain.gain.exponentialRampToValueAtTime(0.001, start + 0.5);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(start);
+        osc.stop(start + 0.52);
+      });
+    } catch {
+      // ignore
+    }
+  }
+}
+
+/* ==========================================================================
+   STARFIELD CANVAS ANIMATION (Twinkling Stardust & Meteors)
+   ========================================================================== */
+class CosmicStarfield {
+  constructor(canvas) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d');
+    this.stars = [];
+    this.meteors = [];
+    this.width = 0;
+    this.height = 0;
+    this.animationId = null;
+
+    this.resize();
+    window.addEventListener('resize', () => this.resize());
+    this.initStars();
+    this.start();
+  }
+
+  resize() {
+    this.width = this.canvas.width = window.innerWidth;
+    this.height = this.canvas.height = window.innerHeight;
+  }
+
+  initStars() {
+    const starCount = Math.floor((this.width * this.height) / 5500);
+    this.stars = [];
+    for (let i = 0; i < starCount; i++) {
+      this.stars.push({
+        x: Math.random() * this.width,
+        y: Math.random() * this.height,
+        radius: Math.random() * 1.4 + 0.3,
+        baseAlpha: Math.random() * 0.6 + 0.2,
+        twinkleSpeed: Math.random() * 0.02 + 0.005,
+        twinkleAngle: Math.random() * Math.PI * 2,
+        color: ['#ffffff', '#e0f2fe', '#f3e8ff', '#fef3c7'][Math.floor(Math.random() * 4)],
+      });
+    }
+  }
+
+  createMeteor() {
+    if (this.meteors.length >= 2) return;
+    this.meteors.push({
+      x: Math.random() * this.width * 0.8,
+      y: 0,
+      length: Math.random() * 70 + 40,
+      speed: Math.random() * 7 + 8,
+      angle: Math.PI / 4 + (Math.random() * 0.2 - 0.1),
+      opacity: 1,
+      decay: Math.random() * 0.015 + 0.01,
+    });
+  }
+
+  start() {
+    let lastMeteorTime = Date.now();
+    const animate = () => {
+      this.ctx.clearRect(0, 0, this.width, this.height);
+
+      // Draw Twinkling Stars
+      for (const s of this.stars) {
+        s.twinkleAngle += s.twinkleSpeed;
+        const alpha = s.baseAlpha + Math.sin(s.twinkleAngle) * 0.25;
+        this.ctx.fillStyle = s.color;
+        this.ctx.globalAlpha = Math.max(0.1, Math.min(1, alpha));
+        this.ctx.beginPath();
+        this.ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2);
+        this.ctx.fill();
+      }
+
+      // Handle Meteors
+      const now = Date.now();
+      if (now - lastMeteorTime > 4500 && Math.random() < 0.35) {
+        this.createMeteor();
+        lastMeteorTime = now;
+      }
+
+      for (let i = this.meteors.length - 1; i >= 0; i--) {
+        const m = this.meteors[i];
+        m.x += Math.cos(m.angle) * m.speed;
+        m.y += Math.sin(m.angle) * m.speed;
+        m.opacity -= m.decay;
+
+        if (m.opacity <= 0 || m.x > this.width || m.y > this.height) {
+          this.meteors.splice(i, 1);
+          continue;
+        }
+
+        this.ctx.save();
+        const grad = this.ctx.createLinearGradient(
+          m.x, m.y,
+          m.x - Math.cos(m.angle) * m.length,
+          m.y - Math.sin(m.angle) * m.length
+        );
+        grad.addColorStop(0, `rgba(255, 255, 255, ${m.opacity})`);
+        grad.addColorStop(0.3, `rgba(56, 189, 248, ${m.opacity * 0.8})`);
+        grad.addColorStop(1, `rgba(99, 102, 241, 0)`);
+
+        this.ctx.strokeStyle = grad;
+        this.ctx.lineWidth = 1.8;
+        this.ctx.beginPath();
+        this.ctx.moveTo(m.x, m.y);
+        this.ctx.lineTo(
+          m.x - Math.cos(m.angle) * m.length,
+          m.y - Math.sin(m.angle) * m.length
+        );
+        this.ctx.stroke();
+        this.ctx.restore();
+      }
+
+      this.ctx.globalAlpha = 1;
+      this.animationId = requestAnimationFrame(animate);
+    };
+    animate();
+  }
+}
+
+/* ==========================================================================
+   QUIZBOT APPLICATION CONTROLLER
+   ========================================================================== */
 class QuizApp {
   constructor() {
+    this.audio = new CosmicAudio();
     this.sessionId = null;
-    this.currentOptions = [];
+    this.topic = '';
     this.score = 0;
-    this.totalQuestions = 0;
-    this.currentQuestion = 0;
-    this.isTransitioning = false;
     this.streak = 0;
-    this.difficulty = 'easy';
+    this.maxStreak = 0;
+    this.currentQuestion = 0;
+    this.totalQuestions = 5;
+    this.difficulty = 'medium';
+    this.isTransitioning = false;
+    this.questionAnswered = false;
+    this.activeOptions = [];
+    this.startTime = 0;
 
-    this.els = {
-      error: document.getElementById('error'),
+    this.cacheDom();
+    this.bindEvents();
+    this.initAudioButton();
+    this.checkApiHealth();
+    this.initStarfield();
+  }
+
+  cacheDom() {
+    this.dom = {
+      canvas: document.getElementById('starfield'),
+      audioBtn: document.getElementById('audio-toggle-btn'),
+      apiStatusDot: document.getElementById('api-status-dot'),
+      apiStatusText: document.getElementById('api-status-text'),
+      headerStreakBadge: document.getElementById('hud-streak-badge'),
+      headerStreakCount: document.getElementById('hud-streak-count'),
+      headerScoreBadge: document.getElementById('hud-score-badge'),
+      headerScoreVal: document.getElementById('hud-score-val'),
+      progressBar: document.getElementById('progress-bar'),
+
+      // Screens
       setupScreen: document.getElementById('setup-screen'),
       quizScreen: document.getElementById('quiz-screen'),
-      finalScreen: document.getElementById('final-screen'),
-      loading: document.getElementById('loading'),
-      skeleton: document.getElementById('skeleton'),
-      errorFallback: document.getElementById('error-fallback'),
-      topic: document.getElementById('topic'),
-      numQuestions: document.getElementById('num-questions'),
+      debriefScreen: document.getElementById('debrief-screen'),
+      skeletonLayer: document.getElementById('skeleton-layer'),
+      errorBanner: document.getElementById('error-banner'),
+      errorText: document.getElementById('error-text'),
+
+      // Setup Elements
+      topicInput: document.getElementById('topic-input'),
       startBtn: document.getElementById('start-btn'),
-      progressText: document.getElementById('progress-text'),
-      scoreText: document.getElementById('score-text'),
-      questionText: document.getElementById('question-text'),
+      topicChips: document.querySelectorAll('.chip'),
+      diffBtns: document.querySelectorAll('[data-difficulty]'),
+      countBtns: document.querySelectorAll('[data-count]'),
+
+      // Quiz Elements
+      sectorIndicator: document.getElementById('sector-indicator'),
+      difficultyPill: document.getElementById('difficulty-pill'),
+      fallbackNotice: document.getElementById('fallback-notice'),
+      questionHeading: document.getElementById('question-heading'),
       optionsContainer: document.getElementById('options-container'),
-      feedback: document.getElementById('feedback'),
+      feedbackBox: document.getElementById('feedback-box'),
+      feedbackHeader: document.getElementById('feedback-header'),
+      feedbackExplanation: document.getElementById('feedback-explanation'),
       nextBtn: document.getElementById('next-btn'),
-      finalScore: document.getElementById('final-score'),
-      restartBtn: document.getElementById('restart-btn'),
-      retryBtn: document.getElementById('retry-btn'),
-      headerScore: document.getElementById('header-score'),
-      streakBadge: document.getElementById('streak-badge'),
-      streakCount: document.getElementById('streak-count'),
-      progressFill: document.getElementById('progress-fill'),
-      questionNumberLabel: document.getElementById('question-number-label'),
-      difficultyBadge: document.getElementById('difficulty-badge'),
-      highScoreRow: document.getElementById('high-score-row'),
+
+      // Debrief Elements
+      rankBadge: document.getElementById('rank-badge'),
+      finalScoreHuge: document.getElementById('final-score-huge'),
+      metricAccuracy: document.getElementById('metric-accuracy'),
+      metricStreak: document.getElementById('metric-streak'),
+      metricTopic: document.getElementById('metric-topic'),
+      highScoreBadge: document.getElementById('high-score-badge'),
+      replayBtn: document.getElementById('replay-btn'),
+      newMissionBtn: document.getElementById('new-mission-btn'),
     };
-
-    this.highScores = this.loadHighScores();
-    this.bindEvents();
   }
 
-  loadHighScores() {
+  initStarfield() {
+    if (this.dom.canvas) {
+      new CosmicStarfield(this.dom.canvas);
+    }
+  }
+
+  initAudioButton() {
+    if (!this.dom.audioBtn) return;
+    this.dom.audioBtn.textContent = this.audio.muted ? '🔇' : '🔊';
+    this.dom.audioBtn.title = this.audio.muted ? 'Sound muted' : 'Sound enabled';
+    this.dom.audioBtn.addEventListener('click', () => {
+      const isMuted = this.audio.toggleMute();
+      this.dom.audioBtn.textContent = isMuted ? '🔇' : '🔊';
+      this.dom.audioBtn.title = isMuted ? 'Sound muted' : 'Sound enabled';
+      if (!isMuted) this.audio.playClick();
+    });
+  }
+
+  async checkApiHealth() {
     try {
-      const raw = localStorage.getItem('quizbot_high_scores');
-      return raw ? JSON.parse(raw) : {};
+      const res = await api.checkHealth();
+      if (res.status === 'ok') {
+        if (res.api_key_configured) {
+          this.dom.apiStatusDot.className = 'status-dot';
+          this.dom.apiStatusText.textContent = 'AI Core Online';
+        } else {
+          this.dom.apiStatusDot.className = 'status-dot warning';
+          this.dom.apiStatusText.textContent = 'Cosmic Bank Active';
+        }
+      }
     } catch {
-      return {};
+      this.dom.apiStatusDot.className = 'status-dot warning';
+      this.dom.apiStatusText.textContent = 'Offline Safe Mode';
     }
-  }
-
-  saveHighScores() {
-    try {
-      localStorage.setItem('quizbot_high_scores', JSON.stringify(this.highScores));
-    } catch {
-      // ignore storage errors
-    }
-  }
-
-  getTopicHighScore(topic) {
-    return this.highScores[topic] || 0;
-  }
-
-  setTopicHighScore(topic, score) {
-    const current = this.getTopicHighScore(topic);
-    if (score > current) {
-      this.highScores[topic] = score;
-      this.saveHighScores();
-      return true;
-    }
-    return false;
   }
 
   bindEvents() {
-    this.els.startBtn.addEventListener('click', () => this.startQuiz());
-    this.els.restartBtn.addEventListener('click', () => this.restart());
-    this.els.retryBtn?.addEventListener('click', () => this.showScreen('setup'));
+    // Topic chips
+    this.dom.topicChips.forEach(chip => {
+      chip.addEventListener('click', () => {
+        this.audio.playClick();
+        this.dom.topicChips.forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        this.dom.topicInput.value = chip.dataset.topic || chip.textContent.trim();
+        this.dom.topicInput.focus();
+      });
+    });
+
+    // Difficulty selection
+    this.dom.diffBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        this.audio.playClick();
+        this.dom.diffBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        this.difficulty = btn.dataset.difficulty;
+      });
+    });
+
+    // Question count selection
+    this.dom.countBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        this.audio.playClick();
+        this.dom.countBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        this.totalQuestions = parseInt(btn.dataset.count, 10) || 5;
+      });
+    });
+
+    // Launch & Restart Buttons
+    this.dom.startBtn.addEventListener('click', () => this.startMission());
+    this.dom.replayBtn.addEventListener('click', () => this.replayMission());
+    this.dom.newMissionBtn.addEventListener('click', () => this.showScreen('setup'));
+
+    // Keyboard Hotkeys
+    window.addEventListener('keydown', (e) => this.handleKeyboard(e));
   }
 
-  updateHeader() {
-    this.els.headerScore.textContent = this.score;
-    if (this.streak > 1) {
-      this.els.streakBadge.style.display = 'inline-flex';
-      this.els.streakCount.textContent = this.streak;
-    } else {
-      this.els.streakBadge.style.display = 'none';
-    }
-
-    if (this.totalQuestions > 0) {
-      const pct = ((this.currentQuestion - 1) / this.totalQuestions) * 100;
-      this.els.progressFill.style.width = `${pct}%`;
-    }
-  }
-
-  updateDifficultyBadge() {
-    const config = DIFFICULTY_CONFIG[this.difficulty] || DIFFICULTY_CONFIG.easy;
-    const badge = this.els.difficultyBadge;
-    badge.textContent = config.label;
-    badge.className = `difficulty-badge ${config.class}`;
-  }
-
-  showError(msg) {
-    this.els.error.textContent = msg;
-    this.els.error.classList.remove('hidden');
-  }
-
-  clearError() {
-    this.els.error.classList.add('hidden');
-  }
-
-  setLoading(isLoading) {
-    this.els.loading.classList.toggle('hidden', !isLoading);
-  }
-
-  showSkeleton(show) {
-    this.els.skeleton.classList.toggle('hidden', !show);
-  }
-
-  showScreen(name) {
-    const screens = ['setup', 'quiz', 'final'];
-    screens.forEach(s => {
-      this.els[`${s}Screen`].classList.toggle('hidden', s !== name);
-      if (s === name) {
-        this.animateScreenIn(this.els[`${s}Screen`]);
+  handleKeyboard(e) {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+      if (e.key === 'Enter' && this.dom.setupScreen && !this.dom.setupScreen.classList.contains('hidden')) {
+        this.startMission();
       }
-    });
-
-    if (name === 'setup') {
-      this.els.errorFallback.classList.add('hidden');
-      this.updateHeader();
-    }
-  }
-
-  animateScreenIn(element) {
-    element.style.opacity = '0';
-    element.style.transform = 'translateY(12px)';
-    requestAnimationFrame(() => {
-      element.style.transition = 'opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1), transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)';
-      element.style.opacity = '1';
-      element.style.transform = 'translateY(0)';
-    });
-  }
-
-  animateQuestionExit(callback) {
-    const container = this.els.optionsContainer;
-    container.classList.add('question-exit');
-    setTimeout(() => {
-      container.classList.remove('question-exit');
-      callback();
-      container.classList.add('question-enter');
-      setTimeout(() => {
-        container.classList.remove('question-enter');
-      }, 400);
-    }, 250);
-  }
-
-  showErrorFallback(message) {
-    this.els.errorFallback.querySelector('.error-message').textContent = message;
-    this.els.errorFallback.classList.remove('hidden');
-    this.showSkeleton(false);
-    this.animateScreenIn(this.els.errorFallback);
-  }
-
-  async startQuiz() {
-    this.clearError();
-    const topic = this.els.topic.value.trim();
-    const numQuestions = parseInt(this.els.numQuestions.value, 10);
-
-    if (!topic) {
-      this.showError('Please enter a topic.');
       return;
     }
 
-    this.setLoading(true);
-    this.showSkeleton(true);
-    this.showScreen('setup');
+    // Next question on Enter or Space
+    if ((e.key === 'Enter' || e.key === ' ') && this.questionAnswered && !this.dom.nextBtn.classList.contains('hidden')) {
+      e.preventDefault();
+      this.dom.nextBtn.click();
+      return;
+    }
+
+    // Option hotkeys: A, B, C, D or 1, 2, 3, 4
+    if (!this.questionAnswered && this.activeOptions.length > 0) {
+      const key = e.key.toUpperCase();
+      let index = -1;
+      if (['A', 'B', 'C', 'D'].includes(key)) {
+        index = key.charCodeAt(0) - 65;
+      } else if (['1', '2', '3', '4'].includes(key)) {
+        index = parseInt(key, 10) - 1;
+      }
+
+      if (index >= 0 && index < this.activeOptions.length) {
+        e.preventDefault();
+        const btn = this.dom.optionsContainer.children[index];
+        if (btn && !btn.disabled) {
+          const letter = this.activeOptions[index].letter;
+          this.submitOption(letter, btn);
+        }
+      }
+    }
+  }
+
+  showScreen(name) {
+    this.clearError();
+    const screens = ['setup', 'quiz', 'debrief'];
+    screens.forEach(s => {
+      const el = this.dom[`${s}Screen`];
+      if (el) el.classList.toggle('hidden', s !== name);
+    });
+
+    if (name === 'setup') {
+      this.sessionId = null;
+      this.currentQuestion = 0;
+      this.score = 0;
+      this.streak = 0;
+      this.updateHud();
+      this.dom.progressBar.style.width = '0%';
+    }
+  }
+
+  updateHud() {
+    this.dom.headerScoreVal.textContent = this.score;
+
+    if (this.streak > 1) {
+      this.dom.headerStreakBadge.style.display = 'inline-flex';
+      this.dom.headerStreakCount.textContent = `${this.streak}x`;
+    } else {
+      this.dom.headerStreakBadge.style.display = 'none';
+    }
+
+    if (this.totalQuestions > 0 && this.currentQuestion > 0) {
+      const pct = Math.min(100, Math.round(((this.currentQuestion - 1) / this.totalQuestions) * 100));
+      this.dom.progressBar.style.width = `${pct}%`;
+    }
+  }
+
+  showError(msg) {
+    this.dom.errorText.textContent = msg;
+    this.dom.errorBanner.classList.remove('hidden');
+  }
+
+  clearError() {
+    this.dom.errorBanner.classList.add('hidden');
+  }
+
+  setSkeleton(show) {
+    this.dom.skeletonLayer.classList.toggle('hidden', !show);
+  }
+
+  async startMission() {
+    this.clearError();
+    this.topic = this.dom.topicInput.value.trim();
+
+    if (!this.topic) {
+      this.showError('Please select or enter a cosmic topic to launch.');
+      this.dom.topicInput.focus();
+      return;
+    }
+
+    this.audio.playClick();
+    this.dom.startBtn.disabled = true;
+    this.setSkeleton(true);
+    this.startTime = Date.now();
 
     try {
-      const data = await api.getQuestions(topic, numQuestions);
+      const data = await api.getQuestions(this.topic, this.totalQuestions, this.difficulty, true);
       this.sessionId = data.session_id;
       this.score = 0;
+      this.streak = 0;
+      this.maxStreak = 0;
       this.totalQuestions = data.total_questions;
       this.currentQuestion = data.question_number;
-      this.streak = 0;
-      this.difficulty = data.difficulty || 'easy';
 
-      this.updateHeader();
-      this.updateDifficultyBadge();
-      this.showSkeleton(false);
       this.showScreen('quiz');
-      this.renderQuestion(data.question_number, data.total_questions, 0, data.question);
-    } catch (e) {
-      this.showErrorFallback(e.message || 'Failed to connect to the server. Please check your connection and try again.');
+      this.renderQuestionData(data);
+    } catch (err) {
+      this.showError(err.message || 'Mission initialization failed. Please try again.');
     } finally {
-      this.setLoading(false);
+      this.dom.startBtn.disabled = false;
+      this.setSkeleton(false);
     }
   }
 
-  renderQuestion(qNum, total, score, rawQuestion) {
-    this.els.questionNumberLabel.textContent = `Question ${qNum} of ${total}`;
-    this.els.scoreText.textContent = `Score: ${score}`;
-    this.els.feedback.classList.add('hidden');
-    this.els.nextBtn.classList.add('hidden');
+  async replayMission() {
+    this.audio.playClick();
+    this.showScreen('setup');
+    this.dom.topicInput.value = this.topic;
+    this.startMission();
+  }
 
-    const { question, options } = this.parseQuestion(rawQuestion);
-    this.currentOptions = options;
+  renderQuestionData(data) {
+    this.questionAnswered = false;
+    this.isTransitioning = false;
+    this.updateHud();
 
-    this.els.questionText.textContent = question || rawQuestion;
+    // Sector indicator
+    this.dom.sectorIndicator.textContent = `SECTOR ${String(data.question_number).padStart(2, '0')} OF ${String(data.total_questions).padStart(2, '0')}`;
 
-    const container = this.els.optionsContainer;
-    container.innerHTML = '';
+    // Difficulty badge
+    const diff = data.difficulty || this.difficulty || 'medium';
+    this.dom.difficultyPill.className = `difficulty-pill ${diff}`;
+    this.dom.difficultyPill.textContent = diff.toUpperCase();
 
-    if (options.length > 0) {
-      options.forEach((opt, index) => {
-        const btn = document.createElement('button');
-        btn.className = 'option-btn';
-        btn.innerHTML = `<span class="option-letter">${opt.letter}</span><span class="option-text">${opt.text}</span>`;
-        btn.style.transitionDelay = `${index * 60}ms`;
-        btn.addEventListener('click', () => this.submitAnswer(opt.letter, btn));
-        container.appendChild(btn);
-
-        requestAnimationFrame(() => {
-          btn.style.opacity = '1';
-          btn.style.transform = 'translateY(0)';
-        });
-      });
+    // Fallback notice
+    if (data.fallback_used) {
+      this.dom.fallbackNotice.classList.remove('hidden');
     } else {
-      const input = document.createElement('input');
-      input.id = 'fallback-answer';
-      input.placeholder = 'Type your answer';
-      const btn = document.createElement('button');
-      btn.textContent = 'Submit';
-      btn.addEventListener('click', () => this.submitAnswer(input.value, btn));
-      container.appendChild(input);
-      container.appendChild(btn);
+      this.dom.fallbackNotice.classList.add('hidden');
     }
+
+    // Question text and options
+    const parsed = this.normalizeQuestion(data);
+    this.dom.questionHeading.textContent = parsed.question;
+    this.activeOptions = parsed.options;
+
+    // Reset feedback and Next button
+    this.dom.feedbackBox.classList.add('hidden');
+    this.dom.nextBtn.classList.add('hidden');
+
+    // Build Option buttons
+    this.dom.optionsContainer.innerHTML = '';
+    parsed.options.forEach((opt, idx) => {
+      const btn = document.createElement('button');
+      btn.className = 'option-card';
+      btn.innerHTML = `
+        <span class="option-letter-badge">${opt.letter}</span>
+        <span class="option-text">${opt.text}</span>
+        <span class="option-shortcut">${opt.letter}</span>
+      `;
+      btn.addEventListener('click', () => this.submitOption(opt.letter, btn));
+      this.dom.optionsContainer.appendChild(btn);
+    });
   }
 
-  parseQuestion(raw) {
+  normalizeQuestion(data) {
+    if (data.options && data.options.length >= 2) {
+      return {
+        question: data.question.replace(/^Question:\s*/i, '').split('\nA)')[0].trim(),
+        options: data.options,
+      };
+    }
+
+    // Fallback string parsing if data.options not directly structured
+    const raw = data.question || '';
     const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
     let question = '';
     const options = [];
+
     for (const line of lines) {
       const optMatch = line.match(/^([A-D])[).]\s*(.+)$/i);
       if (optMatch) {
         options.push({ letter: optMatch[1].toUpperCase(), text: optMatch[2] });
-      } else {
+      } else if (!line.toLowerCase().startsWith('correct:') && !line.toLowerCase().startsWith('explanation:')) {
         question += (question ? ' ' : '') + line.replace(/^Question:\s*/i, '');
       }
     }
-    return { question, options };
+
+    return { question: question || raw, options };
   }
 
-  async submitAnswer(answer, clickedBtn) {
-    if (this.isTransitioning) return;
+  async submitOption(selectedLetter, clickedBtn) {
+    if (this.questionAnswered || this.isTransitioning) return;
+    this.questionAnswered = true;
     this.isTransitioning = true;
     this.clearError();
 
-    document.querySelectorAll('.option-btn').forEach(b => b.disabled = true);
-    this.setLoading(true);
+    // Disable all options immediately to prevent double submission
+    const optionBtns = this.dom.optionsContainer.querySelectorAll('.option-card');
+    optionBtns.forEach(b => b.disabled = true);
 
     try {
-      const data = await api.submitAnswer(this.sessionId, answer);
+      const res = await api.submitAnswer(this.sessionId, selectedLetter);
+      const isCorrect = res.correct;
 
-      if (clickedBtn) {
-        clickedBtn.classList.add(data.correct ? 'correct' : 'wrong');
-        clickedBtn.classList.add(data.correct ? 'pulse-correct' : 'shake-wrong');
-      }
-
-      const fb = this.els.feedback;
-      fb.classList.remove('hidden', 'correct', 'wrong');
-      fb.classList.add(data.correct ? 'correct' : 'wrong');
-      fb.textContent = data.correct ? 'Correct! 🎉' : `Wrong. Correct answer: ${data.correct_answer}`;
-
-      this.els.scoreText.textContent = `Score: ${data.score}`;
-
-      if (data.correct) {
+      // Play sound FX
+      if (isCorrect) {
+        this.audio.playCorrect();
         this.streak += 1;
+        if (this.streak > this.maxStreak) this.maxStreak = this.streak;
       } else {
+        this.audio.playWrong();
         this.streak = 0;
       }
-      this.updateHeader();
 
-      if (data.finished) {
-        const topic = this.els.topic.value.trim();
-        const isNewHighScore = this.setTopicHighScore(topic, data.final_score);
+      this.score = res.score;
+      this.updateHud();
 
+      // Style selected button
+      clickedBtn.classList.add(isCorrect ? 'correct' : 'wrong');
+
+      // If wrong, highlight the correct button as well
+      if (!isCorrect && res.correct_answer) {
+        const correctLetter = res.correct_answer.charAt(0).toUpperCase();
+        optionBtns.forEach(b => {
+          const letterBadge = b.querySelector('.option-letter-badge');
+          if (letterBadge && letterBadge.textContent.trim() === correctLetter) {
+            b.classList.add('correct');
+          }
+        });
+      }
+
+      // Display feedback box
+      this.dom.feedbackBox.className = `feedback-box ${isCorrect ? 'correct' : 'wrong'}`;
+      this.dom.feedbackHeader.textContent = isCorrect ? '✨ Stellar Trajectory Confirmed!' : '⚠️ Celestial Navigation Deviation';
+      this.dom.feedbackExplanation.textContent = res.explanation || (isCorrect ? 'Excellent deduction!' : `Correct Answer: ${res.correct_answer}`);
+      this.dom.feedbackBox.classList.remove('hidden');
+
+      if (res.finished) {
+        this.dom.nextBtn.classList.add('hidden');
         setTimeout(() => {
-          this.els.progressFill.style.width = '100%';
-          this.els.finalScore.textContent = `${data.final_score} / ${data.total_questions}`;
-          this.els.highScoreRow.style.display = isNewHighScore ? 'inline-flex' : 'none';
-          this.showScreen('final');
+          this.dom.progressBar.style.width = '100%';
+          this.showDebrief(res);
           this.isTransitioning = false;
-        }, 1500);
+        }, 1600);
       } else {
-        this.els.nextBtn.classList.remove('hidden');
-        this.els.nextBtn.onclick = () => {
-          this.nextQuestion(data);
-          this.isTransitioning = false;
+        this.dom.nextBtn.classList.remove('hidden');
+        this.dom.nextBtn.onclick = () => {
+          this.audio.playClick();
+          this.currentQuestion = res.next_question.question_number;
+          this.renderQuestionData(res.next_question);
         };
         this.isTransitioning = false;
       }
-    } catch (e) {
-      this.showError(e.message);
+    } catch (err) {
+      this.showError(err.message || 'Transmission failed. Retrying...');
+      this.questionAnswered = false;
       this.isTransitioning = false;
-    } finally {
-      this.setLoading(false);
+      optionBtns.forEach(b => b.disabled = false);
     }
   }
 
-  nextQuestion(data) {
-    this.currentQuestion = data.next_question.question_number;
-    this.score = data.score;
-    this.updateHeader();
-    this.animateQuestionExit(() => {
-      this.renderQuestion(
-        data.next_question.question_number,
-        data.next_question.total_questions,
-        data.score,
-        data.next_question.question
-      );
-    });
+  showDebrief(finalData) {
+    this.audio.playVictory();
+    this.showScreen('debrief');
+
+    const total = finalData.total_questions || this.totalQuestions;
+    const finalScore = finalData.final_score !== undefined ? finalData.final_score : this.score;
+    const percentage = Math.round((finalScore / total) * 100);
+
+    // Cosmic Rank Designation
+    let rank = '🧑‍🚀 Star Cadet';
+    if (percentage === 100) rank = '👑 Galactic Grandmaster';
+    else if (percentage >= 80) rank = '🚀 Fleet Commander';
+    else if (percentage >= 60) rank = '🛸 Orbital Navigator';
+
+    this.dom.rankBadge.textContent = rank;
+    this.dom.finalScoreHuge.textContent = `${finalScore} / ${total}`;
+    this.dom.metricAccuracy.textContent = `${percentage}%`;
+    this.dom.metricStreak.textContent = `${this.maxStreak}x 🔥`;
+    this.dom.metricTopic.textContent = this.topic.length > 16 ? `${this.topic.slice(0, 16)}...` : this.topic;
+
+    // High score check
+    const isHighScore = this.saveHighScore(this.topic, finalScore);
+    this.dom.highScoreBadge.style.display = isHighScore ? 'inline-flex' : 'none';
   }
 
-  restart() {
-    this.sessionId = null;
-    this.score = 0;
-    this.streak = 0;
-    this.els.topic.value = '';
-    this.els.progressFill.style.width = '0%';
-    this.els.streakBadge.style.display = 'none';
-    this.els.highScoreRow.style.display = 'none';
-    this.updateHeader();
-    this.showScreen('setup');
+  saveHighScore(topic, score) {
+    try {
+      const key = 'quizbot_cosmic_high_scores';
+      const scores = JSON.parse(localStorage.getItem(key) || '{}');
+      const prev = scores[topic] || 0;
+      if (score > prev) {
+        scores[topic] = score;
+        localStorage.setItem(key, JSON.stringify(scores));
+        return true;
+      }
+    } catch {
+      // ignore
+    }
+    return false;
   }
 }
 
+// Bootstrap Application
 document.addEventListener('DOMContentLoaded', () => {
   window.quizApp = new QuizApp();
 });

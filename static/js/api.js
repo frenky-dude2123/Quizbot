@@ -1,4 +1,5 @@
-const API_BASE_URL = document.querySelector('meta[name="api-base-url"]')?.content?.trim() || '/api';
+const metaApiBase = document.querySelector('meta[name="api-base-url"]')?.content?.trim();
+const API_BASE_URL = (metaApiBase && !metaApiBase.startsWith('{{')) ? metaApiBase : '/api';
 
 let authToken = localStorage.getItem('auth_token');
 
@@ -31,7 +32,12 @@ async function request(endpoint, options = {}) {
     },
   };
 
-  const response = await fetch(url, config);
+  let response;
+  try {
+    response = await fetch(url, config);
+  } catch (netErr) {
+    throw new Error(`Network failure: Unable to reach server (${netErr.message || 'Offline'})`);
+  }
 
   if (response.status === 401) {
     setAuthToken(null);
@@ -40,23 +46,38 @@ async function request(endpoint, options = {}) {
 
   if (!response.ok) {
     let errorMessage = `HTTP ${response.status}`;
+    let errorCode = 'SERVER_ERROR';
     try {
-      const error = await response.json();
-      errorMessage = error.error || errorMessage;
+      const errorJson = await response.json();
+      errorMessage = errorJson.error || errorMessage;
+      errorCode = errorJson.code || errorCode;
     } catch {
-      // keep default message if body is not JSON
+      // keep fallback string if non-json
     }
-    throw new Error(errorMessage);
+    const err = new Error(errorMessage);
+    err.code = errorCode;
+    err.status = response.status;
+    throw err;
   }
 
   return response.json();
 }
 
 const api = {
-  getQuestions: (topic, numQuestions) =>
-    request('/questions', {
+  checkHealth: () =>
+    request('/health', {
+      method: 'GET',
+    }),
+
+  getQuestions: (topic, numQuestions = 5, difficulty = 'medium', allowFallback = true) =>
+    request('/generate', {
       method: 'POST',
-      body: JSON.stringify({ topic, num_questions: numQuestions }),
+      body: JSON.stringify({
+        topic,
+        num_questions: numQuestions,
+        difficulty,
+        allow_fallback: allowFallback,
+      }),
     }),
 
   submitAnswer: (sessionId, answer) =>
@@ -71,4 +92,4 @@ const api = {
     }),
 };
 
-export { api, setAuthToken, getAuthHeaders };
+export { api, setAuthToken, getAuthHeaders, API_BASE_URL };

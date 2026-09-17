@@ -1,587 +1,230 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="api-base-url" content="{{ api_base_url | default('/api') }}">
-<title>QuizBot</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
-<style>
-  :root {
-    --bg: #0B0F19;
-    --bg-secondary: #0f1629;
-    --card: rgba(17, 24, 39, 0.65);
-    --card-border: rgba(255, 255, 255, 0.1);
-    --accent: #6366F1;
-    --accent-hover: #818cf8;
-    --accent-glow: rgba(99, 102, 241, 0.45);
-    --text: #f1f5f9;
-    --muted: #94a3b8;
-    --correct: #10B981;
-    --correct-glow: rgba(16, 185, 129, 0.35);
-    --wrong: #EF4444;
-    --wrong-glow: rgba(239, 68, 68, 0.35);
-    --header-bg: rgba(11, 15, 25, 0.75);
-    --difficulty-easy: #10B981;
-    --difficulty-medium: #F59E0B;
-    --difficulty-hard: #EF4444;
-  }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="api-base-url" content="/api">
+  <title>QuizBot: Cosmic Odyssey</title>
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+  <!-- Google Fonts: Space Grotesk & Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700;800&display=swap" rel="stylesheet">
 
-  body {
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--bg);
-    background-image:
-      radial-gradient(at 15% 25%, rgba(99, 102, 241, 0.18) 0%, transparent 55%),
-      radial-gradient(at 85% 75%, rgba(139, 92, 246, 0.12) 0%, transparent 55%),
-      radial-gradient(at 50% 0%, rgba(16, 185, 129, 0.06) 0%, transparent 50%);
-    font-family: 'Plus Jakarta Sans', sans-serif;
-    color: var(--text);
-    padding: 20px;
-    overflow-x: hidden;
-  }
-
-  /* Header Bar */
-  .header-bar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 100;
-    background: var(--header-bg);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border-bottom: 1px solid var(--card-border);
-    padding: 14px 24px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-  }
-
-  .header-brand {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 18px;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .header-stats {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .stat-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid var(--card-border);
-    font-size: 13px;
-    font-weight: 600;
-    backdrop-filter: blur(8px);
-  }
-
-  .stat-badge.streak {
-    border-color: rgba(245, 158, 11, 0.3);
-    color: #fbbf24;
-    background: rgba(245, 158, 11, 0.08);
-  }
-
-  .stat-badge.score {
-    border-color: rgba(99, 102, 241, 0.3);
-    color: var(--accent);
-    background: rgba(99, 102, 241, 0.08);
-  }
-
-  /* Progress Bar */
-  .progress-track {
-    width: 100%;
-    height: 4px;
-    background: rgba(255, 255, 255, 0.06);
-    border-radius: 999px;
-    overflow: hidden;
-    margin-top: 10px;
-  }
-
-  .progress-fill {
-    height: 100%;
-    background: linear-gradient(90deg, var(--accent), #a78bfa);
-    border-radius: 999px;
-    transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-    box-shadow: 0 0 12px var(--accent-glow);
-  }
-
-  /* Main Card */
-  .card {
-    background: var(--card);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid var(--card-border);
-    border-radius: 20px;
-    padding: 36px;
-    width: 100%;
-    max-width: 640px;
-    box-shadow:
-      0 30px 70px rgba(0, 0, 0, 0.55),
-      inset 0 1px 0 rgba(255, 255, 255, 0.04);
-    position: relative;
-    overflow: hidden;
-    margin-top: 80px;
-  }
-
-  .card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.12), transparent);
-  }
-
-  h1 {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 28px;
-    font-weight: 700;
-    margin-bottom: 4px;
-    letter-spacing: -0.03em;
-  }
-
-  p.sub {
-    color: var(--muted);
-    font-size: 14px;
-    line-height: 1.5;
-    margin-bottom: 28px;
-  }
-
-  .question-meta {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 16px;
-    gap: 10px;
-    flex-wrap: wrap;
-  }
-
-  .question-meta-left {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-
-  .question-number {
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--muted);
-  }
-
-  .difficulty-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 4px 10px;
-    border-radius: 999px;
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    border: 1px solid;
-  }
-
-  .difficulty-badge.easy {
-    color: var(--difficulty-easy);
-    border-color: rgba(16, 185, 129, 0.35);
-    background: rgba(16, 185, 129, 0.1);
-  }
-
-  .difficulty-badge.medium {
-    color: var(--difficulty-medium);
-    border-color: rgba(245, 158, 11, 0.35);
-    background: rgba(245, 158, 11, 0.1);
-  }
-
-  .difficulty-badge.hard {
-    color: var(--difficulty-hard);
-    border-color: rgba(239, 68, 68, 0.35);
-    background: rgba(239, 68, 68, 0.1);
-  }
-
-  .question-text {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 20px;
-    line-height: 1.5;
-    margin-bottom: 24px;
-    font-weight: 500;
-    letter-spacing: -0.01em;
-  }
-
-  .option-btn {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    width: 100%;
-    min-height: 48px;
-    text-align: left;
-    background: rgba(11, 15, 25, 0.5);
-    backdrop-filter: blur(8px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    color: var(--text);
-    padding: 14px 18px;
-    border-radius: 14px;
-    margin-bottom: 12px;
-    font-family: 'Plus Jakarta Sans', sans-serif;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-    position: relative;
-    overflow: hidden;
-    opacity: 0;
-    transform: translateY(10px);
-  }
-
-  .option-btn:hover:not(:disabled) {
-    border-color: var(--accent);
-    background: rgba(99, 102, 241, 0.08);
-    transform: scale(1.02) translateY(0);
-    box-shadow: 0 6px 24px rgba(99, 102, 241, 0.18);
-  }
-
-  .option-btn:active:not(:disabled) {
-    transform: scale(0.98);
-    transition: all 0.1s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-
-  .option-btn.correct {
-    border-color: var(--correct);
-    background: rgba(16, 185, 129, 0.12);
-    animation: pulse-correct 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-
-  .option-btn.wrong {
-    border-color: var(--wrong);
-    background: rgba(239, 68, 68, 0.12);
-    animation: shake-wrong 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-
-  .option-letter {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 30px;
-    height: 30px;
-    border-radius: 8px;
-    background: rgba(255, 255, 255, 0.06);
-    font-weight: 700;
-    font-size: 13px;
-    flex-shrink: 0;
-    transition: all 0.25s;
-  }
-
-  .option-btn.correct .option-letter {
-    background: var(--correct);
-    color: #0B0F19;
-  }
-
-  .option-btn.wrong .option-letter {
-    background: var(--wrong);
-    color: white;
-  }
-
-  .feedback {
-    margin: 16px 0;
-    padding: 14px 18px;
-    border-radius: 12px;
-    font-size: 14px;
-    font-weight: 600;
-    backdrop-filter: blur(8px);
-    border: 1px solid;
-  }
-
-  .feedback.correct {
-    background: rgba(16, 185, 129, 0.1);
-    color: var(--correct);
-    border-color: rgba(16, 185, 129, 0.2);
-  }
-
-  .feedback.wrong {
-    background: rgba(239, 68, 68, 0.1);
-    color: var(--wrong);
-    border-color: rgba(239, 68, 68, 0.2);
-  }
-
-  .error {
-    color: var(--wrong);
-    font-size: 13px;
-    margin-bottom: 16px;
-    padding: 12px 16px;
-    background: rgba(239, 68, 68, 0.1);
-    border-radius: 10px;
-    border: 1px solid rgba(239, 68, 68, 0.2);
-    backdrop-filter: blur(8px);
-  }
-
-  .score-final { text-align: center; }
-
-  .score-final .big {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 64px;
-    font-weight: 700;
-    margin: 16px 0;
-    background: linear-gradient(135deg, var(--accent), #a78bfa);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    letter-spacing: -0.03em;
-  }
-
-  .high-score-row {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 14px;
-    border-radius: 999px;
-    background: rgba(245, 158, 11, 0.1);
-    border: 1px solid rgba(245, 158, 11, 0.25);
-    color: #fbbf24;
-    font-size: 13px;
-    font-weight: 700;
-    margin-bottom: 18px;
-  }
-
-  .hidden { display: none !important; }
-
-  /* Skeleton Loader */
-  .skeleton-container {
-    position: absolute;
-    inset: 0;
-    padding: 36px;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    z-index: 10;
-    background: var(--card);
-    backdrop-filter: blur(12px);
-    border-radius: 20px;
-    pointer-events: none;
-  }
-
-  .skeleton-line {
-    height: 14px;
-    background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 75%);
-    background-size: 200% 100%;
-    animation: skeleton-shimmer 1.5s infinite;
-    border-radius: 8px;
-  }
-
-  .skeleton-line.short { width: 60%; }
-  .skeleton-line.medium { width: 80%; }
-  .skeleton-line.long { width: 100%; }
-  .skeleton-line.question { height: 18px; margin-top: 8px; }
-  .skeleton-line.option { height: 48px; margin-top: 4px; }
-
-  /* Error Fallback */
-  .error-fallback {
-    text-align: center;
-    padding: 20px 0;
-  }
-
-  .error-fallback .error-icon {
-    font-size: 48px;
-    margin-bottom: 16px;
-    opacity: 0.8;
-  }
-
-  .error-fallback .error-message {
-    color: var(--wrong);
-    font-size: 14px;
-    margin-bottom: 20px;
-    line-height: 1.5;
-  }
-
-  /* Spinner */
-  .spinner {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    color: var(--muted);
-    padding: 20px 0;
-    font-size: 14px;
-  }
-
-  .spinner-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--accent);
-    animation: spinner-bounce 1.4s ease-in-out infinite both;
-  }
-
-  .spinner-dot:nth-child(1) { animation-delay: -0.32s; }
-  .spinner-dot:nth-child(2) { animation-delay: -0.16s; }
-
-  /* Animations */
-  @keyframes skeleton-shimmer {
-    0% { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
-  }
-
-  @keyframes spinner-bounce {
-    0%, 80%, 100% { transform: scale(0); opacity: 0.5; }
-    40% { transform: scale(1); opacity: 1; }
-  }
-
-  @keyframes pulse-correct {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.02); box-shadow: 0 0 0 6px var(--correct-glow); }
-    100% { transform: scale(1); }
-  }
-
-  @keyframes shake-wrong {
-    0%, 100% { transform: translateX(0); }
-    20% { transform: translateX(-5px); }
-    40% { transform: translateX(5px); }
-    60% { transform: translateX(-5px); }
-    80% { transform: translateX(5px); }
-  }
-
-  @keyframes fadeInUp {
-    from { opacity: 0; transform: translateY(24px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  .screen-enter {
-    animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  }
-
-  /* Question Transition */
-  .question-exit {
-    animation: fadeOutLeft 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  }
-
-  .question-enter {
-    animation: fadeInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  }
-
-  @keyframes fadeOutLeft {
-    from { opacity: 1; transform: translateX(0); }
-    to { opacity: 0; transform: translateX(-20px); }
-  }
-
-  @keyframes fadeInRight {
-    from { opacity: 0; transform: translateX(20px); }
-    to { opacity: 1; transform: translateX(0); }
-  }
-
-  @media (max-width: 480px) {
-    .header-bar { padding: 12px 16px; }
-    .header-brand { font-size: 16px; }
-    .stat-badge { padding: 5px 10px; font-size: 12px; }
-    .card { padding: 24px; }
-    .question-text { font-size: 18px; }
-    .score-final .big { font-size: 48px; }
-  }
-</style>
+  <!-- Space-Themed Glassmorphism Stylesheet -->
+  <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
 
-<!-- Top Header Bar -->
-<div class="header-bar" id="header-bar">
-  <div class="header-brand">🧠 QuizBot</div>
-  <div class="header-stats">
-    <div class="stat-badge streak" id="streak-badge" style="display:none;">
-      🔥 <span id="streak-count">0</span>
-    </div>
-    <div class="stat-badge score">
-      ⭐ <span id="header-score">0</span>
-    </div>
-  </div>
-  <div class="progress-track">
-    <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
-  </div>
-</div>
+  <!-- Full-Screen Starfield Canvas -->
+  <canvas id="starfield"></canvas>
 
-<div class="card" id="app">
-  <h1>QuizBot</h1>
-  <p class="sub">AI-generated multiple choice quizzes on any topic</p>
-  <div id="error" class="error hidden"></div>
+  <!-- Ambient Cosmic Nebulae -->
+  <div class="cosmic-nebula nebula-1"></div>
+  <div class="cosmic-nebula nebula-2"></div>
+  <div class="cosmic-nebula nebula-3"></div>
 
-  <!-- Setup screen -->
-  <div id="setup-screen">
-    <label for="topic">Topic</label>
-    <input id="topic" type="text" placeholder="e.g. World War II, Python, Astronomy">
+  <!-- Top Cosmic HUD -->
+  <header class="cosmic-hud">
+    <div class="hud-content">
+      <div class="brand-wrapper" onclick="window.quizApp && window.quizApp.showScreen('setup')">
+        <div class="brand-orb">🪐</div>
+        <div class="brand-title-group">
+          <span class="brand-title">QUIZBOT</span>
+          <span class="brand-sub">Space Edition</span>
+        </div>
+      </div>
 
-    <label for="num-questions">Number of questions (1–5)</label>
-    <input id="num-questions" type="number" min="1" max="5" value="5">
+      <div class="hud-actions">
+        <!-- API Telemetry Indicator -->
+        <div class="hud-pill health" title="Server Connection Telemetry">
+          <span class="status-dot" id="api-status-dot"></span>
+          <span id="api-status-text">Checking Core...</span>
+        </div>
 
-    <button id="start-btn">Start Quiz</button>
-  </div>
+        <!-- Streak Counter -->
+        <div class="hud-pill streak" id="hud-streak-badge" style="display: none;">
+          🔥 <span id="hud-streak-count">0x</span>
+        </div>
 
-  <!-- Quiz screen -->
-  <div id="quiz-screen" class="hidden">
-    <div class="question-meta">
-      <div class="question-meta-left">
-        <span class="question-number" id="question-number-label"></span>
-        <span class="difficulty-badge easy" id="difficulty-badge">Easy</span>
+        <!-- Score Counter -->
+        <div class="hud-pill score" id="hud-score-badge">
+          ⭐ <span id="hud-score-val">0</span>
+        </div>
+
+        <!-- Sound FX Toggle -->
+        <button class="hud-icon-btn" id="audio-toggle-btn" title="Toggle Sound FX" aria-label="Toggle Sound FX">
+          🔊
+        </button>
       </div>
     </div>
-    <div id="question-text" class="question-text"></div>
-    <div id="options-container"></div>
-    <div id="feedback" class="feedback hidden"></div>
-    <button id="next-btn" class="hidden">Next Question</button>
-  </div>
 
-  <!-- Loading -->
-  <div id="loading" class="spinner hidden">
-    <div class="spinner-dot"></div>
-    <div class="spinner-dot"></div>
-    <div class="spinner-dot"></div>
-  </div>
-
-  <!-- Skeleton Loader -->
-  <div id="skeleton" class="skeleton-container hidden">
-    <div class="skeleton-line short question"></div>
-    <div class="skeleton-line long question"></div>
-    <div class="skeleton-line option"></div>
-    <div class="skeleton-line option"></div>
-    <div class="skeleton-line option"></div>
-    <div class="skeleton-line option"></div>
-  </div>
-
-  <!-- Error Fallback -->
-  <div id="error-fallback" class="error-fallback hidden">
-    <div class="error-icon">⚠️</div>
-    <div class="error-message"></div>
-    <button id="retry-btn">Try Again</button>
-  </div>
-
-  <!-- Final score screen -->
-  <div id="final-screen" class="hidden score-final">
-    <p>Quiz complete!</p>
-    <div class="big" id="final-score"></div>
-    <div class="high-score-row" id="high-score-row" style="display:none;">
-      🏆 New High Score
+    <!-- Glowing Progress Comet Track -->
+    <div class="progress-container">
+      <div class="progress-bar" id="progress-bar">
+        <div class="progress-comet"></div>
+      </div>
     </div>
-    <button id="restart-btn">Try Another Topic</button>
-  </div>
-</div>
+  </header>
 
-<script type="module" src="/static/js/app.js"></script>
+  <!-- Main Application Stage -->
+  <main class="app-container">
+    <div class="glass-panel" id="main-panel">
+
+      <!-- Skeleton Loading Layer -->
+      <div class="skeleton-layer hidden" id="skeleton-layer">
+        <div class="skeleton-shimmer" style="height: 28px; width: 45%;"></div>
+        <div class="skeleton-shimmer" style="height: 18px; width: 75%; margin-bottom: 12px;"></div>
+        <div class="skeleton-shimmer" style="height: 60px; width: 100%;"></div>
+        <div class="skeleton-shimmer" style="height: 60px; width: 100%;"></div>
+        <div class="skeleton-shimmer" style="height: 60px; width: 100%;"></div>
+        <div class="skeleton-shimmer" style="height: 60px; width: 100%;"></div>
+      </div>
+
+      <!-- Error Notification Banner -->
+      <div class="error-banner hidden" id="error-banner">
+        <span>⚠️</span>
+        <span id="error-text">An anomaly occurred in transmission.</span>
+      </div>
+
+      <!-- ==========================================
+           1. SETUP SCREEN (MISSION CONTROL)
+           ========================================== -->
+      <section id="setup-screen">
+        <div class="panel-header">
+          <span class="badge-mission">Mission Control • Telemetry Online</span>
+          <h1 class="panel-title">Embark on a Cosmic Odyssey</h1>
+          <p class="panel-subtitle">Explore uncharted knowledge with AI-synthesized quizzes across science, space, and technology.</p>
+        </div>
+
+        <!-- Quick Planetary Topic Chips -->
+        <div class="topic-chips-label">
+          <span>🚀</span> Recommended Expeditions
+        </div>
+        <div class="topic-chips-grid">
+          <button type="button" class="chip" data-topic="Black Holes & Event Horizons">🌌 Black Holes</button>
+          <button type="button" class="chip" data-topic="Solar System & Exoplanets">🪐 Solar System</button>
+          <button type="button" class="chip" data-topic="Quantum Mechanics & Relativity">⚛️ Quantum Physics</button>
+          <button type="button" class="chip" data-topic="NASA & Deep Space Missions">🚀 Space Missions</button>
+          <button type="button" class="chip" data-topic="Astrobiology & Alien Worlds">🛸 Astrobiology</button>
+          <button type="button" class="chip" data-topic="Artificial Intelligence & Cybernetics">💻 AI & Cybernetics</button>
+          <button type="button" class="chip" data-topic="Astrophysics & Supernovas">⚡ Supernovas</button>
+          <button type="button" class="chip" data-topic="Cosmic Mythology & Stars">📜 Constellations</button>
+        </div>
+
+        <!-- Custom Topic Input -->
+        <div class="form-group">
+          <label class="form-label" for="topic-input">Destination Topic</label>
+          <div class="input-glow-wrapper">
+            <span class="input-icon">🔭</span>
+            <input
+              type="text"
+              id="topic-input"
+              class="cosmic-input"
+              placeholder="e.g. James Webb Telescope, General Relativity, Mars Rovers..."
+              autocomplete="off"
+            >
+          </div>
+        </div>
+
+        <!-- Difficulty Control -->
+        <div class="form-group">
+          <label class="form-label">Flight Difficulty</label>
+          <div class="segmented-control">
+            <button type="button" class="segmented-btn" data-difficulty="easy">🟢 Novice</button>
+            <button type="button" class="segmented-btn active" data-difficulty="medium">🟡 Explorer</button>
+            <button type="button" class="segmented-btn" data-difficulty="hard">🔴 Commander</button>
+          </div>
+        </div>
+
+        <!-- Question Count Control -->
+        <div class="form-group">
+          <label class="form-label">Mission Depth</label>
+          <div class="segmented-control">
+            <button type="button" class="segmented-btn" data-count="3">3 Sectors</button>
+            <button type="button" class="segmented-btn active" data-count="5">5 Sectors</button>
+            <button type="button" class="segmented-btn" data-count="10">10 Sectors</button>
+          </div>
+        </div>
+
+        <!-- Launch CTA -->
+        <button type="button" class="btn-launch" id="start-btn">
+          <span>🚀</span> Launch Mission
+        </button>
+      </section>
+
+      <!-- ==========================================
+           2. QUIZ SCREEN (FLIGHT TRANSMISSION)
+           ========================================== -->
+      <section id="quiz-screen" class="hidden">
+        <div class="quiz-meta-row">
+          <div class="sector-indicator" id="sector-indicator">SECTOR 01 OF 05</div>
+          <div class="meta-badges">
+            <span class="difficulty-pill medium" id="difficulty-pill">EXPLORER</span>
+            <span class="fallback-pill hidden" id="fallback-notice" title="Telemetry fallback active">⚡ Offline Bank</span>
+          </div>
+        </div>
+
+        <h2 class="question-heading" id="question-heading">Loading deep space transmission...</h2>
+
+        <!-- Interactive Glass Option Cards -->
+        <div class="options-grid" id="options-container">
+          <!-- Rendered dynamically by app.js -->
+        </div>
+
+        <!-- Real-time Feedback & Educational Drawer -->
+        <div class="feedback-box hidden" id="feedback-box">
+          <div class="feedback-header" id="feedback-header">✨ Trajectory Confirmed</div>
+          <div class="feedback-explanation" id="feedback-explanation">Explanation data will appear here.</div>
+          <button type="button" class="btn-next hidden" id="next-btn">
+            Proceed to Next Sector <span>→</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- ==========================================
+           3. DEBRIEF SCREEN (MISSION COMPLETE)
+           ========================================== -->
+      <section id="debrief-screen" class="hidden debrief-panel">
+        <div class="rank-badge-large" id="rank-badge">👑 Galactic Grandmaster</div>
+        <p class="panel-subtitle">Mission Orbit Accomplished</p>
+        <div class="score-display-huge" id="final-score-huge">5 / 5</div>
+
+        <div class="high-score-row" id="high-score-badge" style="display:none; margin: 0 auto 18px;">
+          🏆 New All-Time Galactic High Score!
+        </div>
+
+        <!-- Telemetry Performance Grid -->
+        <div class="debrief-metrics-grid">
+          <div class="metric-card">
+            <span class="metric-val" id="metric-accuracy">100%</span>
+            <span class="metric-lbl">Orbital Accuracy</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-val" id="metric-streak">5x 🔥</span>
+            <span class="metric-lbl">Max Streak</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-val" id="metric-topic">Cosmic</span>
+            <span class="metric-lbl">Expedition</span>
+          </div>
+        </div>
+
+        <!-- Action Controls -->
+        <div class="debrief-actions">
+          <button type="button" class="btn-secondary" id="replay-btn">
+            🔄 Replay Topic
+          </button>
+          <button type="button" class="btn-launch" style="margin-top:0;" id="new-mission-btn">
+            🚀 New Mission
+          </button>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- ES Module Controller -->
+  <script type="module" src="/static/js/app.js"></script>
 </body>
 </html>
