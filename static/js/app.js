@@ -1,5 +1,11 @@
 import { api, setAuthToken } from './api.js';
 
+const DIFFICULTY_CONFIG = {
+  easy: { label: 'Easy', class: 'easy' },
+  medium: { label: 'Medium', class: 'medium' },
+  hard: { label: 'Hard', class: 'hard' },
+};
+
 class QuizApp {
   constructor() {
     this.sessionId = null;
@@ -9,6 +15,7 @@ class QuizApp {
     this.currentQuestion = 0;
     this.isTransitioning = false;
     this.streak = 0;
+    this.difficulty = 'easy';
 
     this.els = {
       error: document.getElementById('error'),
@@ -34,9 +41,44 @@ class QuizApp {
       streakBadge: document.getElementById('streak-badge'),
       streakCount: document.getElementById('streak-count'),
       progressFill: document.getElementById('progress-fill'),
+      questionNumberLabel: document.getElementById('question-number-label'),
+      difficultyBadge: document.getElementById('difficulty-badge'),
+      highScoreRow: document.getElementById('high-score-row'),
     };
 
+    this.highScores = this.loadHighScores();
     this.bindEvents();
+  }
+
+  loadHighScores() {
+    try {
+      const raw = localStorage.getItem('quizbot_high_scores');
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  }
+
+  saveHighScores() {
+    try {
+      localStorage.setItem('quizbot_high_scores', JSON.stringify(this.highScores));
+    } catch {
+      // ignore storage errors
+    }
+  }
+
+  getTopicHighScore(topic) {
+    return this.highScores[topic] || 0;
+  }
+
+  setTopicHighScore(topic, score) {
+    const current = this.getTopicHighScore(topic);
+    if (score > current) {
+      this.highScores[topic] = score;
+      this.saveHighScores();
+      return true;
+    }
+    return false;
   }
 
   bindEvents() {
@@ -58,6 +100,13 @@ class QuizApp {
       const pct = ((this.currentQuestion - 1) / this.totalQuestions) * 100;
       this.els.progressFill.style.width = `${pct}%`;
     }
+  }
+
+  updateDifficultyBadge() {
+    const config = DIFFICULTY_CONFIG[this.difficulty] || DIFFICULTY_CONFIG.easy;
+    const badge = this.els.difficultyBadge;
+    badge.textContent = config.label;
+    badge.className = `difficulty-badge ${config.class}`;
   }
 
   showError(msg) {
@@ -143,8 +192,10 @@ class QuizApp {
       this.totalQuestions = data.total_questions;
       this.currentQuestion = data.question_number;
       this.streak = 0;
+      this.difficulty = data.difficulty || 'easy';
 
       this.updateHeader();
+      this.updateDifficultyBadge();
       this.showSkeleton(false);
       this.showScreen('quiz');
       this.renderQuestion(data.question_number, data.total_questions, 0, data.question);
@@ -156,7 +207,7 @@ class QuizApp {
   }
 
   renderQuestion(qNum, total, score, rawQuestion) {
-    this.els.progressText.textContent = `Question ${qNum} of ${total}`;
+    this.els.questionNumberLabel.textContent = `Question ${qNum} of ${total}`;
     this.els.scoreText.textContent = `Score: ${score}`;
     this.els.feedback.classList.add('hidden');
     this.els.nextBtn.classList.add('hidden');
@@ -241,9 +292,13 @@ class QuizApp {
       this.updateHeader();
 
       if (data.finished) {
+        const topic = this.els.topic.value.trim();
+        const isNewHighScore = this.setTopicHighScore(topic, data.final_score);
+
         setTimeout(() => {
           this.els.progressFill.style.width = '100%';
           this.els.finalScore.textContent = `${data.final_score} / ${data.total_questions}`;
+          this.els.highScoreRow.style.display = isNewHighScore ? 'inline-flex' : 'none';
           this.showScreen('final');
           this.isTransitioning = false;
         }, 1500);
@@ -284,6 +339,7 @@ class QuizApp {
     this.els.topic.value = '';
     this.els.progressFill.style.width = '0%';
     this.els.streakBadge.style.display = 'none';
+    this.els.highScoreRow.style.display = 'none';
     this.updateHeader();
     this.showScreen('setup');
   }

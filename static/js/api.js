@@ -1,4 +1,4 @@
-const API_BASE_URL = document.querySelector('meta[name="api-base-url"]')?.content || '/api';
+const API_BASE_URL = document.querySelector('meta[name="api-base-url"]')?.content?.trim() || '/api';
 
 let authToken = localStorage.getItem('auth_token');
 
@@ -39,8 +39,14 @@ async function request(endpoint, options = {}) {
   }
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Network error' }));
-    throw new Error(error.error || `HTTP ${response.status}`);
+    let errorMessage = `HTTP ${response.status}`;
+    try {
+      const error = await response.json();
+      errorMessage = error.error || errorMessage;
+    } catch {
+      // keep default message if body is not JSON
+    }
+    throw new Error(errorMessage);
   }
 
   return response.json();

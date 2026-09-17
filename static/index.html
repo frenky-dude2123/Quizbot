@@ -13,7 +13,7 @@
     --bg: #0B0F19;
     --bg-secondary: #0f1629;
     --card: rgba(17, 24, 39, 0.65);
-    --card-border: rgba(255, 255, 255, 0.08);
+    --card-border: rgba(255, 255, 255, 0.1);
     --accent: #6366F1;
     --accent-hover: #818cf8;
     --accent-glow: rgba(99, 102, 241, 0.45);
@@ -23,7 +23,10 @@
     --correct-glow: rgba(16, 185, 129, 0.35);
     --wrong: #EF4444;
     --wrong-glow: rgba(239, 68, 68, 0.35);
-    --header-bg: rgba(11, 15, 25, 0.7);
+    --header-bg: rgba(11, 15, 25, 0.75);
+    --difficulty-easy: #10B981;
+    --difficulty-medium: #F59E0B;
+    --difficulty-hard: #EF4444;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -164,78 +167,58 @@
     margin-bottom: 28px;
   }
 
-  label {
-    display: block;
-    font-size: 13px;
-    color: var(--muted);
-    margin-bottom: 8px;
-    font-weight: 600;
-    letter-spacing: 0.03em;
-    text-transform: uppercase;
+  .question-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    gap: 10px;
+    flex-wrap: wrap;
   }
 
-  input {
-    width: 100%;
-    padding: 14px 16px;
-    border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background: rgba(11, 15, 25, 0.55);
-    backdrop-filter: blur(8px);
-    color: var(--text);
-    font-family: 'Plus Jakarta Sans', sans-serif;
-    font-size: 15px;
-    margin-bottom: 20px;
-    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  .question-meta-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
   }
 
-  input:focus {
-    outline: none;
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px var(--accent-glow);
-  }
-
-  button {
-    width: 100%;
-    padding: 14px;
-    border: none;
-    border-radius: 12px;
-    background: var(--accent);
-    color: white;
-    font-family: 'Plus Jakarta Sans', sans-serif;
-    font-size: 15px;
+  .question-number {
+    font-size: 12px;
     font-weight: 700;
-    cursor: pointer;
-    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-    position: relative;
-    overflow: hidden;
-    letter-spacing: 0.01em;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
   }
 
-  button::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(135deg, rgba(255,255,255,0.15), transparent 60%);
-    opacity: 0;
-    transition: opacity 0.25s;
+  .difficulty-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    border: 1px solid;
   }
 
-  button:hover {
-    background: var(--accent-hover);
-    transform: translateY(-1px);
-    box-shadow: 0 10px 30px var(--accent-glow);
+  .difficulty-badge.easy {
+    color: var(--difficulty-easy);
+    border-color: rgba(16, 185, 129, 0.35);
+    background: rgba(16, 185, 129, 0.1);
   }
 
-  button:hover::after { opacity: 1; }
-
-  button:active {
-    transform: translateY(0) scale(0.98);
+  .difficulty-badge.medium {
+    color: var(--difficulty-medium);
+    border-color: rgba(245, 158, 11, 0.35);
+    background: rgba(245, 158, 11, 0.1);
   }
 
-  button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: none !important;
+  .difficulty-badge.hard {
+    color: var(--difficulty-hard);
+    border-color: rgba(239, 68, 68, 0.35);
+    background: rgba(239, 68, 68, 0.1);
   }
 
   .question-text {
@@ -252,12 +235,13 @@
     align-items: center;
     gap: 14px;
     width: 100%;
+    min-height: 48px;
     text-align: left;
     background: rgba(11, 15, 25, 0.5);
     backdrop-filter: blur(8px);
     border: 1px solid rgba(255, 255, 255, 0.08);
     color: var(--text);
-    padding: 16px 20px;
+    padding: 14px 18px;
     border-radius: 14px;
     margin-bottom: 12px;
     font-family: 'Plus Jakarta Sans', sans-serif;
@@ -364,6 +348,20 @@
     -webkit-text-fill-color: transparent;
     background-clip: text;
     letter-spacing: -0.03em;
+  }
+
+  .high-score-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.25);
+    color: #fbbf24;
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 18px;
   }
 
   .hidden { display: none !important; }
@@ -490,6 +488,15 @@
     from { opacity: 0; transform: translateX(20px); }
     to { opacity: 1; transform: translateX(0); }
   }
+
+  @media (max-width: 480px) {
+    .header-bar { padding: 12px 16px; }
+    .header-brand { font-size: 16px; }
+    .stat-badge { padding: 5px 10px; font-size: 12px; }
+    .card { padding: 24px; }
+    .question-text { font-size: 18px; }
+    .score-final .big { font-size: 48px; }
+  }
 </style>
 </head>
 <body>
@@ -528,9 +535,11 @@
 
   <!-- Quiz screen -->
   <div id="quiz-screen" class="hidden">
-    <div class="progress" style="display:flex; justify-content:space-between; font-size:13px; color:var(--muted); margin-bottom:16px; font-weight:600;">
-      <span id="progress-text"></span>
-      <span id="score-text"></span>
+    <div class="question-meta">
+      <div class="question-meta-left">
+        <span class="question-number" id="question-number-label"></span>
+        <span class="difficulty-badge easy" id="difficulty-badge">Easy</span>
+      </div>
     </div>
     <div id="question-text" class="question-text"></div>
     <div id="options-container"></div>
@@ -566,6 +575,9 @@
   <div id="final-screen" class="hidden score-final">
     <p>Quiz complete!</p>
     <div class="big" id="final-score"></div>
+    <div class="high-score-row" id="high-score-row" style="display:none;">
+      🏆 New High Score
+    </div>
     <button id="restart-btn">Try Another Topic</button>
   </div>
 </div>
