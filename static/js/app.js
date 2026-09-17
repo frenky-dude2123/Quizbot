@@ -1,0 +1,260 @@
+import { api, setAuthToken } from './api.js';
+
+class QuizApp {
+  constructor() {
+    this.sessionId = null;
+    this.currentOptions = [];
+    this.score = 0;
+    this.totalQuestions = 0;
+    this.currentQuestion = 0;
+    this.isTransitioning = false;
+
+    this.els = {
+      error: document.getElementById('error'),
+      setupScreen: document.getElementById('setup-screen'),
+      quizScreen: document.getElementById('quiz-screen'),
+      finalScreen: document.getElementById('final-screen'),
+      loading: document.getElementById('loading'),
+      skeleton: document.getElementById('skeleton'),
+      errorFallback: document.getElementById('error-fallback'),
+      topic: document.getElementById('topic'),
+      numQuestions: document.getElementById('num-questions'),
+      startBtn: document.getElementById('start-btn'),
+      progressText: document.getElementById('progress-text'),
+      scoreText: document.getElementById('score-text'),
+      questionText: document.getElementById('question-text'),
+      optionsContainer: document.getElementById('options-container'),
+      feedback: document.getElementById('feedback'),
+      nextBtn: document.getElementById('next-btn'),
+      finalScore: document.getElementById('final-score'),
+      restartBtn: document.getElementById('restart-btn'),
+      retryBtn: document.getElementById('retry-btn'),
+    };
+
+    this.bindEvents();
+  }
+
+  bindEvents() {
+    this.els.startBtn.addEventListener('click', () => this.startQuiz());
+    this.els.restartBtn.addEventListener('click', () => this.restart());
+    this.els.retryBtn?.addEventListener('click', () => this.showScreen('setup'));
+  }
+
+  showError(msg) {
+    this.els.error.textContent = msg;
+    this.els.error.classList.remove('hidden');
+  }
+
+  clearError() {
+    this.els.error.classList.add('hidden');
+  }
+
+  setLoading(isLoading) {
+    this.els.loading.classList.toggle('hidden', !isLoading);
+  }
+
+  showSkeleton(show) {
+    this.els.skeleton.classList.toggle('hidden', !show);
+  }
+
+  showScreen(name) {
+    const screens = ['setup', 'quiz', 'final'];
+    screens.forEach(s => {
+      this.els[`${s}Screen`].classList.toggle('hidden', s !== name);
+      if (s === name) {
+        this.animateScreenIn(this.els[`${s}Screen`]);
+      }
+    });
+
+    if (name === 'setup') {
+      this.els.errorFallback.classList.add('hidden');
+    }
+  }
+
+  animateScreenIn(element) {
+    element.style.opacity = '0';
+    element.style.transform = 'translateY(12px)';
+    requestAnimationFrame(() => {
+      element.style.transition = 'opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1), transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)';
+      element.style.opacity = '1';
+      element.style.transform = 'translateY(0)';
+    });
+  }
+
+  animateQuestionTransition(callback) {
+    const container = this.els.optionsContainer;
+    container.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
+    container.style.opacity = '0';
+    container.style.transform = 'translateX(20px)';
+
+    setTimeout(() => {
+      callback();
+      container.style.transform = 'translateX(-20px)';
+      requestAnimationFrame(() => {
+        container.style.transform = 'translateX(0)';
+        container.style.opacity = '1';
+      });
+    }, 250);
+  }
+
+  showErrorFallback(message) {
+    this.els.errorFallback.querySelector('.error-message').textContent = message;
+    this.els.errorFallback.classList.remove('hidden');
+    this.showSkeleton(false);
+    this.animateScreenIn(this.els.errorFallback);
+  }
+
+  async startQuiz() {
+    this.clearError();
+    const topic = this.els.topic.value.trim();
+    const numQuestions = parseInt(this.els.numQuestions.value, 10);
+
+    if (!topic) {
+      this.showError('Please enter a topic.');
+      return;
+    }
+
+    this.setLoading(true);
+    this.showSkeleton(true);
+    this.showScreen('setup');
+
+    try {
+      const data = await api.getQuestions(topic, numQuestions);
+      this.sessionId = data.session_id;
+      this.score = 0;
+      this.totalQuestions = data.total_questions;
+      this.currentQuestion = data.question_number;
+
+      this.showSkeleton(false);
+      this.showScreen('quiz');
+      this.renderQuestion(data.question_number, data.total_questions, 0, data.question);
+    } catch (e) {
+      this.showErrorFallback(e.message || 'Failed to connect to the server. Please check your connection and try again.');
+    } finally {
+      this.setLoading(false);
+    }
+  }
+
+  renderQuestion(qNum, total, score, rawQuestion) {
+    this.els.progressText.textContent = `Question ${qNum} of ${total}`;
+    this.els.scoreText.textContent = `Score: ${score}`;
+    this.els.feedback.classList.add('hidden');
+    this.els.nextBtn.classList.add('hidden');
+
+    const { question, options } = this.parseQuestion(rawQuestion);
+    this.currentOptions = options;
+
+    this.els.questionText.textContent = question || rawQuestion;
+
+    const container = this.els.optionsContainer;
+    container.innerHTML = '';
+
+    if (options.length > 0) {
+      options.forEach((opt, index) => {
+        const btn = document.createElement('button');
+        btn.className = 'option-btn';
+        btn.innerHTML = `<span class="option-letter">${opt.letter}</span><span class="option-text">${opt.text}</span>`;
+        btn.style.transitionDelay = `${index * 50}ms`;
+        btn.addEventListener('click', () => this.submitAnswer(opt.letter, btn));
+        container.appendChild(btn);
+
+        requestAnimationFrame(() => {
+          btn.style.opacity = '1';
+          btn.style.transform = 'translateY(0)';
+        });
+      });
+    } else {
+      const input = document.createElement('input');
+      input.id = 'fallback-answer';
+      input.placeholder = 'Type your answer';
+      const btn = document.createElement('button');
+      btn.textContent = 'Submit';
+      btn.addEventListener('click', () => this.submitAnswer(input.value, btn));
+      container.appendChild(input);
+      container.appendChild(btn);
+    }
+  }
+
+  parseQuestion(raw) {
+    const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+    let question = '';
+    const options = [];
+    for (const line of lines) {
+      const optMatch = line.match(/^([A-D])[).]\s*(.+)$/i);
+      if (optMatch) {
+        options.push({ letter: optMatch[1].toUpperCase(), text: optMatch[2] });
+      } else {
+        question += (question ? ' ' : '') + line.replace(/^Question:\s*/i, '');
+      }
+    }
+    return { question, options };
+  }
+
+  async submitAnswer(answer, clickedBtn) {
+    if (this.isTransitioning) return;
+    this.isTransitioning = true;
+    this.clearError();
+
+    document.querySelectorAll('.option-btn').forEach(b => b.disabled = true);
+    this.setLoading(true);
+
+    try {
+      const data = await api.submitAnswer(this.sessionId, answer);
+
+      if (clickedBtn) {
+        clickedBtn.classList.add(data.correct ? 'correct' : 'wrong');
+        clickedBtn.classList.add(data.correct ? 'pulse-correct' : 'shake-wrong');
+      }
+
+      const fb = this.els.feedback;
+      fb.classList.remove('hidden', 'correct', 'wrong');
+      fb.classList.add(data.correct ? 'correct' : 'wrong');
+      fb.textContent = data.correct ? 'Correct! 🎉' : `Wrong. Correct answer: ${data.correct_answer}`;
+
+      this.els.scoreText.textContent = `Score: ${data.score}`;
+
+      if (data.finished) {
+        setTimeout(() => {
+          this.els.finalScore.textContent = `${data.final_score} / ${data.total_questions}`;
+          this.showScreen('final');
+          this.isTransitioning = false;
+        }, 1500);
+      } else {
+        this.els.nextBtn.classList.remove('hidden');
+        this.els.nextBtn.onclick = () => {
+          this.nextQuestion(data);
+          this.isTransitioning = false;
+        };
+        this.isTransitioning = false;
+      }
+    } catch (e) {
+      this.showError(e.message);
+      this.isTransitioning = false;
+    } finally {
+      this.setLoading(false);
+    }
+  }
+
+  nextQuestion(data) {
+    this.currentQuestion = data.next_question.question_number;
+    this.score = data.score;
+    this.animateQuestionTransition(() => {
+      this.renderQuestion(
+        data.next_question.question_number,
+        data.next_question.total_questions,
+        data.score,
+        data.next_question.question
+      );
+    });
+  }
+
+  restart() {
+    this.sessionId = null;
+    this.els.topic.value = '';
+    this.showScreen('setup');
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  window.quizApp = new QuizApp();
+});
