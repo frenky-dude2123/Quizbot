@@ -313,30 +313,28 @@ Explanation: <1-2 sentence cosmic explanation>
 
 
 # ==========================================
-# Routes & API Endpoints
+# Routes & Static File Handlers
 # ==========================================
 
 @app.route("/")
-def index():
-    """Serve the single-page application entrypoint."""
+def serve_index():
     return send_from_directory("static", "index.html")
 
 
-@app.route("/static/<path:filename>")
-def serve_static(filename):
-    """Direct static asset handler to ensure both /static/* and root paths resolve."""
-    return send_from_directory("static", filename)
+@app.route("/static/<path:path>")
+def serve_static_prefix(path):
+    return send_from_directory("static", path)
+
+
+@app.route("/<path:path>")
+def serve_static(path):
+    return send_from_directory("static", path)
 
 
 @app.route("/api/health")
 def health():
-    """Health check endpoint exposing API key configuration and model status."""
-    has_key = bool(os.getenv("GEMINI_API_KEY") and os.getenv("GEMINI_API_KEY").strip())
-    return jsonify({
-        "status": "ok",
-        "api_key_configured": has_key,
-        "model": _genai_model
-    })
+    has_key = bool(os.getenv("GEMINI_API_KEY"))
+    return jsonify({"status": "ok", "api_key_configured": has_key})
 
 
 @app.route("/api/generate", methods=["POST"])
