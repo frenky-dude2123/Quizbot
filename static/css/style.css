@@ -3,8 +3,8 @@
    ========================================================================== */
 
 :root {
-  --space-bg: #060814;
-  --space-void: #03040a;
+  --space-bg: #030712;
+  --space-void: #010206;
   --nebula-purple: #7c3aed;
   --nebula-indigo: #4f46e5;
   --nebula-cyan: #06b6d4;
@@ -14,8 +14,8 @@
   --glass-card-hover: rgba(20, 26, 56, 0.78);
   --glass-card-active: rgba(28, 36, 75, 0.85);
   --glass-border: rgba(255, 255, 255, 0.12);
-  --glass-border-hover: rgba(99, 102, 241, 0.5);
-  --glass-highlight: rgba(255, 255, 255, 0.2);
+  --glass-border-hover: rgba(56, 189, 248, 0.6);
+  --glass-highlight: rgba(255, 255, 255, 0.15);
 
   --accent-primary: #818cf8;
   --accent-secondary: #38bdf8;
@@ -53,7 +53,11 @@
 
 html, body {
   min-height: 100vh;
-  background-color: var(--space-bg);
+  background-color: #030712;
+  background-image:
+    radial-gradient(at 15% 25%, rgba(124, 58, 237, 0.25) 0%, transparent 55%),
+    radial-gradient(at 85% 75%, rgba(79, 70, 229, 0.22) 0%, transparent 55%),
+    radial-gradient(at 50% 0%, rgba(6, 182, 212, 0.12) 0%, transparent 50%);
   color: var(--text-primary);
   font-family: var(--font-body);
   overflow-x: hidden;
@@ -318,17 +322,17 @@ html, body {
 /* Glassmorphic Cards */
 .glass-panel {
   background: var(--glass-card);
-  backdrop-filter: blur(24px) saturate(190%);
-  -webkit-backdrop-filter: blur(24px) saturate(190%);
-  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 24px;
   padding: 40px;
   width: 100%;
   max-width: 680px;
   box-shadow:
     0 30px 80px -15px rgba(0, 0, 0, 0.8),
-    0 0 45px rgba(99, 102, 241, 0.12),
-    inset 0 1px 0 var(--glass-highlight);
+    0 0 45px rgba(99, 102, 241, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
   position: relative;
   overflow: hidden;
   transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
@@ -683,14 +687,15 @@ p.panel-subtitle {
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   position: relative;
   overflow: hidden;
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
 
 .option-card:hover:not(:disabled) {
   background: var(--glass-card-hover);
-  border-color: var(--accent-primary);
+  border-color: #38bdf8;
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.22);
+  box-shadow: 0 0 20px rgba(56, 189, 248, 0.4), 0 8px 24px rgba(99, 102, 241, 0.25);
 }
 
 .option-card:active:not(:disabled) {

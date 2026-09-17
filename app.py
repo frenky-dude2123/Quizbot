@@ -333,8 +333,10 @@ def serve_static(path):
 
 @app.route("/api/health")
 def health():
-    has_key = bool(os.getenv("GEMINI_API_KEY"))
-    return jsonify({"status": "ok", "api_key_configured": has_key})
+    return jsonify({
+        "status": "ok",
+        "api_key_configured": bool(os.getenv("GEMINI_API_KEY"))
+    })
 
 
 @app.route("/api/generate", methods=["POST"])
