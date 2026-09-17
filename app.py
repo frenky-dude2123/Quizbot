@@ -1,4 +1,4 @@
-import os
+﻿import os
 import uuid
 from flask import Flask, request, jsonify, send_from_directory, render_template_string
 from dotenv import load_dotenv
@@ -56,8 +56,39 @@ Line 2: the correct answer, as "Letter) full option text\""""
 
 
 def get_template():
-    with open(os.path.join(app.static_folder, "index.html")) as f:
-        return f.read()
+    template_path = os.path.join(app.static_folder, "index.html")
+    try:
+        with open(template_path, "r", encoding="utf-8") as f:
+            return f.read()
+    except UnicodeDecodeError:
+        with open(template_path, "r", encoding="latin-1") as f:
+            return f.read()
+    except FileNotFoundError:
+        return """
+        <!DOCTYPE html>
+        <html>
+        <head><title>QuizBot</title></head>
+        <body style="font-family: sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #0B0F19; color: #f1f5f9;">
+            <div style="text-align: center; padding: 2rem; background: rgba(17,24,39,0.8); border-radius: 16px; border: 1px solid rgba(255,255,255,0.1);">
+                <h1>QuizBot</h1>
+                <p style="color: #EF4444;">Template file not found. Please ensure static/index.html exists.</p>
+            </div>
+        </body>
+        </html>
+        """
+    except Exception as e:
+        return f"""
+        <!DOCTYPE html>
+        <html>
+        <head><title>QuizBot</title></head>
+        <body style="font-family: sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #0B0F19; color: #f1f5f9;">
+            <div style="text-align: center; padding: 2rem; background: rgba(17,24,39,0.8); border-radius: 16px; border: 1px solid rgba(255,255,255,0.1);">
+                <h1>QuizBot</h1>
+                <p style="color: #EF4444;">Failed to load template: {e}</p>
+            </div>
+        </body>
+        </html>
+        """
 
 
 @app.route("/")

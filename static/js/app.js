@@ -8,6 +8,7 @@ class QuizApp {
     this.totalQuestions = 0;
     this.currentQuestion = 0;
     this.isTransitioning = false;
+    this.streak = 0;
 
     this.els = {
       error: document.getElementById('error'),
@@ -29,6 +30,10 @@ class QuizApp {
       finalScore: document.getElementById('final-score'),
       restartBtn: document.getElementById('restart-btn'),
       retryBtn: document.getElementById('retry-btn'),
+      headerScore: document.getElementById('header-score'),
+      streakBadge: document.getElementById('streak-badge'),
+      streakCount: document.getElementById('streak-count'),
+      progressFill: document.getElementById('progress-fill'),
     };
 
     this.bindEvents();
@@ -38,6 +43,21 @@ class QuizApp {
     this.els.startBtn.addEventListener('click', () => this.startQuiz());
     this.els.restartBtn.addEventListener('click', () => this.restart());
     this.els.retryBtn?.addEventListener('click', () => this.showScreen('setup'));
+  }
+
+  updateHeader() {
+    this.els.headerScore.textContent = this.score;
+    if (this.streak > 1) {
+      this.els.streakBadge.style.display = 'inline-flex';
+      this.els.streakCount.textContent = this.streak;
+    } else {
+      this.els.streakBadge.style.display = 'none';
+    }
+
+    if (this.totalQuestions > 0) {
+      const pct = ((this.currentQuestion - 1) / this.totalQuestions) * 100;
+      this.els.progressFill.style.width = `${pct}%`;
+    }
   }
 
   showError(msg) {
@@ -68,6 +88,7 @@ class QuizApp {
 
     if (name === 'setup') {
       this.els.errorFallback.classList.add('hidden');
+      this.updateHeader();
     }
   }
 
@@ -81,19 +102,16 @@ class QuizApp {
     });
   }
 
-  animateQuestionTransition(callback) {
+  animateQuestionExit(callback) {
     const container = this.els.optionsContainer;
-    container.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
-    container.style.opacity = '0';
-    container.style.transform = 'translateX(20px)';
-
+    container.classList.add('question-exit');
     setTimeout(() => {
+      container.classList.remove('question-exit');
       callback();
-      container.style.transform = 'translateX(-20px)';
-      requestAnimationFrame(() => {
-        container.style.transform = 'translateX(0)';
-        container.style.opacity = '1';
-      });
+      container.classList.add('question-enter');
+      setTimeout(() => {
+        container.classList.remove('question-enter');
+      }, 400);
     }, 250);
   }
 
@@ -124,7 +142,9 @@ class QuizApp {
       this.score = 0;
       this.totalQuestions = data.total_questions;
       this.currentQuestion = data.question_number;
+      this.streak = 0;
 
+      this.updateHeader();
       this.showSkeleton(false);
       this.showScreen('quiz');
       this.renderQuestion(data.question_number, data.total_questions, 0, data.question);
@@ -154,7 +174,7 @@ class QuizApp {
         const btn = document.createElement('button');
         btn.className = 'option-btn';
         btn.innerHTML = `<span class="option-letter">${opt.letter}</span><span class="option-text">${opt.text}</span>`;
-        btn.style.transitionDelay = `${index * 50}ms`;
+        btn.style.transitionDelay = `${index * 60}ms`;
         btn.addEventListener('click', () => this.submitAnswer(opt.letter, btn));
         container.appendChild(btn);
 
@@ -213,8 +233,16 @@ class QuizApp {
 
       this.els.scoreText.textContent = `Score: ${data.score}`;
 
+      if (data.correct) {
+        this.streak += 1;
+      } else {
+        this.streak = 0;
+      }
+      this.updateHeader();
+
       if (data.finished) {
         setTimeout(() => {
+          this.els.progressFill.style.width = '100%';
           this.els.finalScore.textContent = `${data.final_score} / ${data.total_questions}`;
           this.showScreen('final');
           this.isTransitioning = false;
@@ -238,7 +266,8 @@ class QuizApp {
   nextQuestion(data) {
     this.currentQuestion = data.next_question.question_number;
     this.score = data.score;
-    this.animateQuestionTransition(() => {
+    this.updateHeader();
+    this.animateQuestionExit(() => {
       this.renderQuestion(
         data.next_question.question_number,
         data.next_question.total_questions,
@@ -250,7 +279,12 @@ class QuizApp {
 
   restart() {
     this.sessionId = null;
+    this.score = 0;
+    this.streak = 0;
     this.els.topic.value = '';
+    this.els.progressFill.style.width = '0%';
+    this.els.streakBadge.style.display = 'none';
+    this.updateHeader();
     this.showScreen('setup');
   }
 }
