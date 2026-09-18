@@ -531,6 +531,121 @@ def leaderboard():
     })
 
 
+# ==========================================
+# CHATBOT ENDPOINTS
+# ==========================================
+
+# New storage for chat sessions separate from quiz sessions
+chat_sessions = {}
+
+
+@app.route("/api/chat/start", methods=["POST"])
+def start_chat():
+    """Create a new chat session ID for the chatbot."""
+    cleanup_old_sessions()
+    
+    session_id = str(uuid.uuid4())
+    chat_sessions[session_id] = {
+        "session_id": session_id,
+        "history": [],  # List of {"role": "user"/"model", "text": "..."}
+        "timestamp": time.time(),
+        "model": DEFAULT_MODEL  # Inherit the default model
+    }
+    
+    logger.info("Started chat session %s", session_id)
+    return jsonify({"session_id": session_id})
+
+
+@app.route("/api/chat", methods=["POST"])
+def chat():
+    """Send a message to the chatbot and get a response with conversation memory."""
+    cleanup_old_sessions()
+    
+    data = request.get_json(force=True, silent=True) or {}
+    session_id = data.get("session_id")
+    message = (data.get("message") or "").strip()
+    
+    if not session_id:
+        return jsonify({"error": "Chat session ID is required", "code": "MISSING_SESSION_ID"}), 400
+    
+    if not message:
+        return jsonify({"error": "Message cannot be empty", "code": "INVALID_INPUT"}), 400
+    
+    session = chat_sessions.get(session_id)
+    if not session:
+        return jsonify({"error": "Invalid or expired chat session. Please start a new chat.", "code": "EXPIRED_CHAT_SESSION"}), 400
+    
+    session["timestamp"] = time.time()
+    
+    # Add user message to history
+    session["history"].append({"role": "user", "text": message})
+    
+    try:
+        # Use the existing Gemini client and model failover pattern
+        client = get_genai_client()
+        
+        # Build conversation history for Gemini
+        contents = []
+        for turn in session["history"]:
+            contents.append({
+                "role": "user" if turn["role"] == "user" else "model", 
+                "parts": [turn["text"]]
+            })
+        
+        # Try to generate content with failover models
+        candidate_models = [
+            session.get("model", DEFAULT_MODEL),
+            "gemini-3.6-flash",
+            "gemini-flash-latest",
+            "gemini-3.7-flash",
+            "gemini-3.8-flash",
+            "gemini-3.5-flash",
+        ]
+        
+        # Deduplicate while preserving order
+        seen = set()
+        models_to_try = [m for m in candidate_models if not (m in seen or seen.add(m))]
+        
+        last_err = None
+        for model_name in models_to_try:
+            try:
+                logger.info("Attempting Gemini chat with model: %s", model_name)
+                response = client.models.generate_content(
+                    model=model_name, 
+                    contents=contents
+                )
+                if response and response.text:
+                    # Add model response to history
+                    session["history"].append({"role": "model", "text": response.text})
+                    
+                    # Update session model for future calls
+                    session["model"] = model_name
+                    
+                    return jsonify({
+                        "response": response.text,
+                        "model_used": model_name,
+                        "history_length": len(session["history"])
+                    })
+                else:
+                    logger.warning("Gemini returned empty response for model %s", model_name)
+            except Exception as e:
+                last_err = e
+                logger.warning("Gemini model %s failed: %s", model_name, str(e))
+                continue
+        
+        if last_err:
+            raise last_err
+        raise RuntimeError("No candidate Gemini model succeeded in generating chat response.")
+        
+    except Exception as e:
+        logger.exception("Gemini chat failed for session %s: %s", session_id, e)
+        return jsonify({
+            "error": f"Chat generation failed: {str(e)}",
+            "code": "CHAT_GENERATION_FAILED",
+            "details": str(e)
+        }), 502
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     logger.info("Launching QuizBot on http://0.0.0.0:%d", port)

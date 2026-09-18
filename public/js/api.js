@@ -69,22 +69,55 @@ const api = {
       method: 'GET',
     }),
 
-  getQuestions: (topic, numQuestions = 5, difficulty = 'medium', allowFallback = true) =>
-    request('/generate', {
-      method: 'POST',
-      body: JSON.stringify({
-        topic,
-        num_questions: numQuestions,
-        difficulty,
-        allow_fallback: allowFallback,
-      }),
-    }),
+  getQuestions: async (topic, numQuestions = 5, difficulty = 'medium', allowFallback = true) => {
+    try {
+      return await request('/generate', {
+        method: 'POST',
+        body: JSON.stringify({
+          topic,
+          num_questions: numQuestions,
+          difficulty,
+          allow_fallback: allowFallback,
+        }),
+      });
+    } catch (err) {
+      // Re-throw with additional context for UI handling
+      throw new Error(`Failed to generate question: ${err.message || 'Unknown error'}`);
+    }
+  },
 
-  submitAnswer: (sessionId, answer) =>
-    request('/quiz/submit', {
-      method: 'POST',
-      body: JSON.stringify({ session_id: sessionId, answer }),
-    }),
+  submitAnswer: async (sessionId, answer) => {
+    try {
+      return await request('/quiz/submit', {
+        method: 'POST',
+        body: JSON.stringify({ session_id: sessionId, answer }),
+      });
+    } catch (err) {
+      // Re-throw with additional context for UI handling
+      throw new Error(`Failed to submit answer: ${err.message || 'Unknown error'}`);
+    }
+  },
+
+  startChat: async () => {
+    try {
+      return await request('/chat/start', {
+        method: 'POST',
+      });
+    } catch (err) {
+      throw new Error(`Failed to start chat: ${err.message || 'Unknown error'}`);
+    }
+  },
+
+  chat: async (sessionId, message) => {
+    try {
+      return await request('/chat', {
+        method: 'POST',
+        body: JSON.stringify({ session_id: sessionId, message }),
+      });
+    } catch (err) {
+      throw new Error(`Failed to send message: ${err.message || 'Unknown error'}`);
+    }
+  },
 
   getLeaderboard: () =>
     request('/leaderboard', {

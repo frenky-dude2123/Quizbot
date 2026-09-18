@@ -56,6 +56,11 @@
         <button class="hud-icon-btn" id="audio-toggle-btn" title="Toggle Sound FX" aria-label="Toggle Sound FX">
           🔊
         </button>
+
+        <!-- Cosmic Chatbot Toggle -->
+        <button class="hud-icon-btn" id="chat-toggle-btn" title="Open Cosmic Chatbot" aria-label="Open Chatbot">
+          💬
+        </button>
       </div>
     </div>
 
@@ -71,25 +76,31 @@
   <main class="app-container">
     <div class="glass-panel" id="main-panel">
 
-      <!-- Skeleton Loading Layer -->
-      <div class="skeleton-layer hidden" id="skeleton-layer">
-        <div class="skeleton-shimmer" style="height: 28px; width: 45%;"></div>
-        <div class="skeleton-shimmer" style="height: 18px; width: 75%; margin-bottom: 12px;"></div>
-        <div class="skeleton-shimmer" style="height: 60px; width: 100%;"></div>
-        <div class="skeleton-shimmer" style="height: 60px; width: 100%;"></div>
-        <div class="skeleton-shimmer" style="height: 60px; width: 100%;"></div>
-        <div class="skeleton-shimmer" style="height: 60px; width: 100%;"></div>
-      </div>
+        <!-- Error Notification Banner -->
+        <div class="error-banner hidden" id="error-banner">
+          <span>⚠️</span>
+          <span id="error-text">An anomaly occurred in transmission.</span>
+        </div>
 
-      <!-- Error Notification Banner -->
-      <div class="error-banner hidden" id="error-banner">
-        <span>⚠️</span>
-        <span id="error-text">An anomaly occurred in transmission.</span>
-      </div>
+        <!-- Skeleton Loading Layer -->
+        <div class="skeleton-layer hidden" id="skeleton-layer">
+          <div class="skeleton-shimmer" style="height: 28px; width: 45%;"></div>
+          <div class="skeleton-shimmer" style="height: 18px; width: 75%; margin-bottom: 12px;"></div>
+          <div class="skeleton-shimmer" style="height: 60px; width: 100%;"></div>
+          <div class="skeleton-shimmer" style="height: 60px; width: 100%;"></div>
+          <div class="skeleton-shimmer" style="height: 60px; width: 100%;"></div>
+          <div class="skeleton-shimmer" style="height: 60px; width: 100%;"></div>
+        </div>
 
-      <!-- ==========================================
-           1. SETUP SCREEN (MISSION CONTROL)
-           ========================================== -->
+        <!-- Loading Indicator (for chat messages) -->
+        <div class="loading-indicator hidden" id="loading-indicator">
+          <div class="loading-spinner"></div>
+          <span class="loading-text" id="loading-text">Loading...</span>
+        </div>
+
+        <!-- ==========================================
+             1. SETUP SCREEN (MISSION CONTROL)
+             ========================================== -->
       <section id="setup-screen">
         <div class="panel-header">
           <span class="badge-mission">Mission Control • Telemetry Online</span>
@@ -218,6 +229,53 @@
           <button type="button" class="btn-launch" style="margin-top:0;" id="new-mission-btn">
             🚀 New Mission
           </button>
+        </div>
+      </section>
+
+      <!-- ==========================================
+           4. CHAT SCREEN (COSMIC CHATBOT)
+           ========================================== -->
+      <section id="chat-screen" class="hidden">
+        <div class="panel-header">
+          <span class="badge-mission">🤖 Cosmic Chatbot</span>
+          <h1 class="panel-title">Chat with the Cosmos</h1>
+          <p class="panel-subtitle">Engage in multi-turn conversations with AI-powered cosmic intelligence.</p>
+        </div>
+
+        <!-- Chat Messages Container -->
+        <div class="chat-messages-container">
+          <div class="chat-messages" id="chat-messages">
+            <!-- Messages will be added dynamically -->
+            <div class="chat-message bot-message">
+              <div class="message-content">
+                <span class="message-avatar">🤖</span>
+                <div class="message-bubble">
+                  <p>Hello! I'm your Cosmic Chatbot. Ask me anything about space, science, or the universe!</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Chat Input Area -->
+        <div class="chat-input-area">
+          <div class="chat-input-wrapper">
+            <input
+              type="text"
+              id="chat-input"
+              class="cosmic-input"
+              placeholder="Ask about black holes, planets, stars..."
+              autocomplete="off"
+              disabled
+            >
+            <button type="button" class="btn-launch" id="chat-send-btn" disabled>
+              <span>🚀</span> Send
+            </button>
+          </div>
+          <div class="chat-status" id="chat-status">
+            <span class="status-dot"></span>
+            <span id="chat-status-text">Connecting...</span>
+          </div>
         </div>
       </section>
 

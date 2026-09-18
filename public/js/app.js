@@ -253,6 +253,9 @@ class QuizApp {
     this.questionAnswered = false;
     this.activeOptions = [];
     this.startTime = 0;
+    this.loadingMessage = null;
+    this.loadingIndicator = null;
+    this.selectedOptionLetter = null;
 
     this.cacheDom();
     this.bindEvents();
@@ -265,6 +268,7 @@ class QuizApp {
     this.dom = {
       canvas: document.getElementById('starfield'),
       audioBtn: document.getElementById('audio-toggle-btn'),
+      chatToggleBtn: document.getElementById('chat-toggle-btn'),
       apiStatusDot: document.getElementById('api-status-dot'),
       apiStatusText: document.getElementById('api-status-text'),
       headerStreakBadge: document.getElementById('hud-streak-badge'),
@@ -277,6 +281,7 @@ class QuizApp {
       setupScreen: document.getElementById('setup-screen'),
       quizScreen: document.getElementById('quiz-screen'),
       debriefScreen: document.getElementById('debrief-screen'),
+      chatScreen: document.getElementById('chat-screen'),
       skeletonLayer: document.getElementById('skeleton-layer'),
       errorBanner: document.getElementById('error-banner'),
       errorText: document.getElementById('error-text'),
@@ -298,6 +303,15 @@ class QuizApp {
       feedbackHeader: document.getElementById('feedback-header'),
       feedbackExplanation: document.getElementById('feedback-explanation'),
       nextBtn: document.getElementById('next-btn'),
+
+      // Chat Elements
+      chatMessages: document.getElementById('chat-messages'),
+      chatInput: document.getElementById('chat-input'),
+      chatSendBtn: document.getElementById('chat-send-btn'),
+      chatStatus: document.getElementById('chat-status'),
+      chatStatusText: document.getElementById('chat-status-text'),
+      loadingIndicator: document.getElementById('loading-indicator'),
+      loadingText: document.getElementById('loading-text'),
 
       // Debrief Elements
       rankBadge: document.getElementById('rank-badge'),
@@ -327,6 +341,140 @@ class QuizApp {
       this.dom.audioBtn.title = isMuted ? 'Sound muted' : 'Sound enabled';
       if (!isMuted) this.audio.playClick();
     });
+  }
+
+  initChatButton() {
+    if (!this.dom.chatToggleBtn) return;
+    
+    this.dom.chatToggleBtn.addEventListener('click', () => {
+      this.audio.playClick();
+      this.showChatScreen();
+    });
+  }
+
+  showChatScreen() {
+    this.clearError();
+    this.showScreen('chat');
+    this.dom.chatStatusText.textContent = 'Connecting...';
+    this.dom.chatStatus.classList.add('connecting');
+    this.initializeChat();
+  }
+
+  async initializeChat() {
+    try {
+      const res = await api.startChat();
+      this.chatSessionId = res.session_id;
+      this.dom.chatStatusText.textContent = 'Ready to chat';
+      this.dom.chatStatus.classList.remove('connecting');
+      this.dom.chatInput.disabled = false;
+      this.dom.chatSendBtn.disabled = false;
+      this.dom.chatInput.focus();
+    } catch (err) {
+      this.showError(`Chat connection failed: ${err.message}`);
+      this.dom.chatStatusText.textContent = 'Connection failed';
+      this.dom.chatStatus.classList.add('error');
+    }
+  }
+
+  addMessageToHistory(role, text, isLoading = false) {
+    if (!this.dom.chatMessages) return;
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `chat-message ${role}-message`;
+    
+    const avatar = role === 'user' ? '👤' : '🤖';
+    
+    const contentDiv = document.createElement('div');
+    contentDiv.className = 'message-content';
+    
+    const avatarSpan = document.createElement('span');
+    avatarSpan.className = 'message-avatar';
+    avatarSpan.textContent = avatar;
+    
+    const bubbleDiv = document.createElement('div');
+    bubbleDiv.className = 'message-bubble';
+    
+    if (isLoading) {
+      bubbleDiv.innerHTML = `
+        <div class="loading-message">
+          <div class="loading-spinner-small"></div>
+          <span>Thinking...</span>
+        </div>
+      `;
+    } else {
+      const p = document.createElement('p');
+      p.textContent = text;
+      bubbleDiv.appendChild(p);
+    }
+    
+    contentDiv.appendChild(avatarSpan);
+    contentDiv.appendChild(bubbleDiv);
+    messageDiv.appendChild(contentDiv);
+    
+    this.dom.chatMessages.appendChild(messageDiv);
+    this.scrollChatToBottom();
+  }
+
+  scrollChatToBottom() {
+    if (this.dom.chatMessages) {
+      this.dom.chatMessages.scrollTop = this.dom.chatMessages.scrollHeight;
+    }
+  }
+
+  async sendChatMessage() {
+    const message = this.dom.chatInput.value.trim();
+    if (!message || !this.chatSessionId) return;
+    
+    // Add user message to UI immediately
+    this.addMessageToHistory('user', message);
+    this.dom.chatInput.value = '';
+    this.dom.chatInput.disabled = true;
+    this.dom.chatSendBtn.disabled = true;
+    
+    // Add loading indicator
+    this.addMessageToHistory('bot', '', true);
+    
+    try {
+      const res = await api.chat(this.chatSessionId, message);
+      
+      // Replace loading message with actual response
+      const messages = this.dom.chatMessages.querySelectorAll('.chat-message.bot-message');
+      if (messages.length > 0) {
+        messages[messages.length - 1].remove();
+      }
+      
+      this.addMessageToHistory('bot', res.response);
+      
+    } catch (err) {
+      // Replace loading message with error
+      const messages = this.dom.chatMessages.querySelectorAll('.chat-message.bot-message');
+      if (messages.length > 0) {
+        messages[messages.length - 1].remove();
+      }
+      
+      this.showError(`Chat error: ${err.message}`);
+      this.addMessageToHistory('bot', `Error: ${err.message}`);
+    } finally {
+      this.dom.chatInput.disabled = false;
+      this.dom.chatSendBtn.disabled = false;
+      this.dom.chatInput.focus();
+    }
+  }
+
+  bindChatEvents() {
+    if (this.dom.chatInput) {
+      this.dom.chatInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && !this.dom.chatInput.disabled) {
+          this.sendChatMessage();
+        }
+      });
+    }
+    
+    if (this.dom.chatSendBtn) {
+      this.dom.chatSendBtn.addEventListener('click', () => {
+        this.sendChatMessage();
+      });
+    }
   }
 
   async checkApiHealth() {
@@ -442,36 +590,51 @@ class QuizApp {
     }
   }
 
-  updateHud() {
-    this.dom.headerScoreVal.textContent = this.score;
-
-    if (this.streak > 1) {
-      this.dom.headerStreakBadge.style.display = 'inline-flex';
-      this.dom.headerStreakCount.textContent = `${this.streak}x`;
-    } else {
-      this.dom.headerStreakBadge.style.display = 'none';
+  startLoading(message = null) {
+    this.clearError();
+    this.loadingMessage = message;
+    if (this.dom.loadingIndicator) {
+      this.dom.loadingIndicator.classList.remove('hidden');
+      this.updateLoadingText(message);
     }
+    this.dom.nextBtn.disabled = true;
+    this.disableAllOptions(true);
+  }
 
-    if (this.totalQuestions > 0 && this.currentQuestion > 0) {
-      const pct = Math.min(100, Math.round(((this.currentQuestion - 1) / this.totalQuestions) * 100));
-      this.dom.progressBar.style.width = `${pct}%`;
+  stopLoading() {
+    this.loadingMessage = null;
+    if (this.dom.loadingIndicator) {
+      this.dom.loadingIndicator.classList.add('hidden');
+      this.updateLoadingText(null);
+    }
+    this.enableAllOptions();
+    this.dom.nextBtn.disabled = false;
+  }
+
+  updateLoadingText(message) {
+    if (this.dom.loadingText) {
+      if (message) {
+        this.dom.loadingText.textContent = message;
+      } else {
+        this.dom.loadingText.textContent = '';
+      }
     }
   }
 
-  showError(msg) {
-    this.dom.errorText.textContent = msg;
-    this.dom.errorBanner.classList.remove('hidden');
+  clearLoadingState() {
+    this.stopLoading();
   }
 
-  clearError() {
-    this.dom.errorBanner.classList.add('hidden');
+  disableAllOptions(disable) {
+    const optionBtns = this.dom.optionsContainer.querySelectorAll('.option-card');
+    optionBtns.forEach(b => b.disabled = disable);
   }
 
-  setSkeleton(show) {
-    this.dom.skeletonLayer.classList.toggle('hidden', !show);
+  enableAllOptions() {
+    this.disableAllOptions(false);
   }
 
-  async startMission() {
+    async startMission() {
     this.clearError();
     this.topic = this.dom.topicInput.value.trim();
 
@@ -512,10 +675,11 @@ class QuizApp {
     this.startMission();
   }
 
-  renderQuestionData(data) {
+    renderQuestionData(data) {
     this.questionAnswered = false;
     this.isTransitioning = false;
     this.updateHud();
+    this.clearLoadingState();
 
     // Sector indicator
     this.dom.sectorIndicator.textContent = `SECTOR ${String(data.question_number).padStart(2, '0')} OF ${String(data.total_questions).padStart(2, '0')}`;
@@ -540,6 +704,7 @@ class QuizApp {
     // Reset feedback and Next button
     this.dom.feedbackBox.classList.add('hidden');
     this.dom.nextBtn.classList.add('hidden');
+    this.clearLoadingState();
 
     // Build Option buttons
     this.dom.optionsContainer.innerHTML = '';
@@ -587,10 +752,16 @@ class QuizApp {
     this.questionAnswered = true;
     this.isTransitioning = true;
     this.clearError();
+    this.selectedOptionLetter = selectedLetter;
 
-    // Disable all options immediately to prevent double submission
-    const optionBtns = this.dom.optionsContainer.querySelectorAll('.option-card');
-    optionBtns.forEach(b => b.disabled = true);
+    // Highlight the selected option immediately for persistent feedback
+    clickedBtn.classList.add('selected');
+    clickedBtn.disabled = true;
+
+    // Show loading state with appropriate message
+    const loadingMessage = clickedBtn.querySelector('.option-text').textContent.includes('correct', -1) ? 
+      'Verifying your answer...' : 'Checking answer...';
+    this.startLoading(loadingMessage);
 
     try {
       const res = await api.submitAnswer(this.sessionId, selectedLetter);
@@ -609,18 +780,22 @@ class QuizApp {
       this.score = res.score;
       this.updateHud();
 
-      // Style selected button
-      clickedBtn.classList.add(isCorrect ? 'correct' : 'wrong');
-
-      // If wrong, highlight the correct button as well
-      if (!isCorrect && res.correct_answer) {
-        const correctLetter = res.correct_answer.charAt(0).toUpperCase();
-        optionBtns.forEach(b => {
-          const letterBadge = b.querySelector('.option-letter-badge');
-          if (letterBadge && letterBadge.textContent.trim() === correctLetter) {
-            b.classList.add('correct');
-          }
-        });
+      // Show correct/incorrect styling based on result
+      if (isCorrect) {
+        clickedBtn.classList.add('correct');
+      } else {
+        clickedBtn.classList.add('wrong');
+        // If wrong, highlight the correct answer
+        if (res.correct_answer) {
+          const correctLetter = res.correct_answer.charAt(0).toUpperCase();
+          const allBtns = this.dom.optionsContainer.querySelectorAll('.option-card');
+          allBtns.forEach(b => {
+            const letterBadge = b.querySelector('.option-letter-badge');
+            if (letterBadge && letterBadge.textContent.trim() === correctLetter) {
+              b.classList.add('correct');
+            }
+          });
+        }
       }
 
       // Display feedback box
@@ -635,6 +810,7 @@ class QuizApp {
           this.dom.progressBar.style.width = '100%';
           this.showDebrief(res);
           this.isTransitioning = false;
+          this.stopLoading();
         }, 1600);
       } else {
         this.dom.nextBtn.classList.remove('hidden');
@@ -644,12 +820,15 @@ class QuizApp {
           this.renderQuestionData(res.next_question);
         };
         this.isTransitioning = false;
+        this.stopLoading();
       }
     } catch (err) {
       this.showError(err.message || 'Transmission failed. Retrying...');
-      this.questionAnswered = false;
-      this.isTransitioning = false;
-      optionBtns.forEach(b => b.disabled = false);
+      this.selectedOptionLetter = null;
+      // Reset selected state on error
+      clickedBtn.classList.remove('selected');
+      clickedBtn.disabled = false;
+      this.stopLoading();
     }
   }
 
