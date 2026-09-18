@@ -621,6 +621,50 @@ class QuizApp {
     }
   }
 
+  showError(msg) {
+    this.dom.errorText.textContent = msg;
+    this.dom.errorBanner.classList.remove('hidden');
+  }
+
+  clearError() {
+    this.dom.errorBanner.classList.add('hidden');
+  }
+
+  setSkeleton(show) {
+    this.dom.skeletonLayer.classList.toggle('hidden', !show);
+  }
+
+  startLoading(message = null) {
+    this.clearError();
+    this.loadingMessage = message;
+    if (this.dom.loadingIndicator) {
+      this.dom.loadingIndicator.classList.remove('hidden');
+      this.updateLoadingText(message);
+    }
+    this.dom.nextBtn.disabled = true;
+    this.disableAllOptions(true);
+  }
+
+  stopLoading() {
+    this.loadingMessage = null;
+    if (this.dom.loadingIndicator) {
+      this.dom.loadingIndicator.classList.add('hidden');
+      this.updateLoadingText(null);
+    }
+    this.enableAllOptions();
+    this.dom.nextBtn.disabled = false;
+  }
+
+  updateLoadingText(message) {
+    if (this.dom.loadingText) {
+      if (message) {
+        this.dom.loadingText.textContent = message;
+      } else {
+        this.dom.loadingText.textContent = '';
+      }
+    }
+  }
+
   clearLoadingState() {
     this.stopLoading();
   }
@@ -633,8 +677,6 @@ class QuizApp {
   enableAllOptions() {
     this.disableAllOptions(false);
   }
-
-    async startMission() {
     this.clearError();
     this.topic = this.dom.topicInput.value.trim();
 
