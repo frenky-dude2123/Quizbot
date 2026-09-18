@@ -331,12 +331,12 @@ def index():
 
 @app.route("/static/<path:path>")
 def serve_static_prefix(path):
-    return send_from_directory("static", path)
+    return send_from_directory("public", path)
 
 
 @app.route("/<path:path>")
 def serve_static(path):
-    return send_from_directory("static", path)
+    return send_from_directory("public", path)
 
 
 @app.route("/api/health")
