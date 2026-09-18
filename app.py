@@ -16,7 +16,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("quizbot")
 
-app = Flask(__name__, static_folder='static', static_url_path='')
+app = Flask(__name__)
 
 API_BASE_URL = os.environ.get("VITE_API_BASE_URL", "/api")
 DEFAULT_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.6-flash")
@@ -316,9 +316,17 @@ Explanation: <1-2 sentence cosmic explanation>
 # Routes & Static File Handlers
 # ==========================================
 
+def static_index():
+    return send_from_directory("public", "index.html")
+
+
+def static_index():
+    return send_from_directory("public", "index.html")
+
+
 @app.route("/")
-def serve_index():
-    return send_from_directory("static", "index.html")
+def index():
+    return static_index()
 
 
 @app.route("/static/<path:path>")

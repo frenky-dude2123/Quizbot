@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="api-base-url" content="/api">
+  <title>QuizBot: Cosmic Odyssey</title>
+
+  <!-- Google Fonts: Space Grotesk & Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Space-Themed Glassmorphism Stylesheet -->
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+  <!-- Full-Screen Starfield Canvas -->
+  <canvas id="starfield"></canvas>
+
+  <!-- Ambient Cosmic Nebulae -->
+  <div class="cosmic-nebula nebula-1"></div>
+  <div class="cosmic-nebula nebula-2"></div>
+  <div class="cosmic-nebula nebula-3"></div>
+
+  <!-- Top Cosmic HUD -->
+  <header class="cosmic-hud">
+    <div class="hud-content">
+      <div class="brand-wrapper" onclick="window.quizApp && window.quizApp.showScreen('setup')">
+        <div class="brand-orb">🪐</div>
+        <div class="brand-title-group">
+          <span class="brand-title">QUIZBOT</span>
+          <span class="brand-sub">Space Edition</span>
+        </div>
+      </div>
+
+      <div class="hud-actions">
+        <!-- API Telemetry Indicator -->
+        <div class="hud-pill health" title="Server Connection Telemetry">
+          <span class="status-dot" id="api-status-dot"></span>
+          <span id="api-status-text">Checking Core...</span>
+        </div>
+
+        <!-- Streak Counter -->
+        <div class="hud-pill streak" id="hud-streak-badge" style="display: none;">
+          🔥 <span id="hud-streak-count">0x</span>
+        </div>
+
+        <!-- Score Counter -->
+        <div class="hud-pill score" id="hud-score-badge">
+          ⭐ <span id="hud-score-val">0</span>
+        </div>
+
+        <!-- Sound FX Toggle -->
+        <button class="hud-icon-btn" id="audio-toggle-btn" title="Toggle Sound FX" aria-label="Toggle Sound FX">
+          🔊
+        </button>
+      </div>
+    </div>
+
+    <!-- Glowing Progress Comet Track -->
+    <div class="progress-container">
+      <div class="progress-bar" id="progress-bar">
+        <div class="progress-comet"></div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Application Stage -->
+  <main class="app-container">
+    <div class="glass-panel" id="main-panel">
+
+      <!-- Skeleton Loading Layer -->
+      <div class="skeleton-layer hidden" id="skeleton-layer">
+        <div class="skeleton-shimmer" style="height: 28px; width: 45%;"></div>
+        <div class="skeleton-shimmer" style="height: 18px; width: 75%; margin-bottom: 12px;"></div>
+        <div class="skeleton-shimmer" style="height: 60px; width: 100%;"></div>
+        <div class="skeleton-shimmer" style="height: 60px; width: 100%;"></div>
+        <div class="skeleton-shimmer" style="height: 60px; width: 100%;"></div>
+        <div class="skeleton-shimmer" style="height: 60px; width: 100%;"></div>
+      </div>
+
+      <!-- Error Notification Banner -->
+      <div class="error-banner hidden" id="error-banner">
+        <span>⚠️</span>
+        <span id="error-text">An anomaly occurred in transmission.</span>
+      </div>
+
+      <!-- ==========================================
+           1. SETUP SCREEN (MISSION CONTROL)
+           ========================================== -->
+      <section id="setup-screen">
+        <div class="panel-header">
+          <span class="badge-mission">Mission Control • Telemetry Online</span>
+          <h1 class="panel-title">Embark on a Cosmic Odyssey</h1>
+          <p class="panel-subtitle">Explore uncharted knowledge with AI-synthesized quizzes across science, space, and technology.</p>
+        </div>
+
+        <!-- Quick Planetary Topic Chips -->
+        <div class="topic-chips-label">
+          <span>🚀</span> Recommended Expeditions
+        </div>
+        <div class="topic-chips-grid">
+          <button type="button" class="chip" data-topic="Black Holes & Event Horizons">🌌 Black Holes</button>
+          <button type="button" class="chip" data-topic="Solar System & Exoplanets">🪐 Solar System</button>
+          <button type="button" class="chip" data-topic="Quantum Mechanics & Relativity">⚛️ Quantum Physics</button>
+          <button type="button" class="chip" data-topic="NASA & Deep Space Missions">🚀 Space Missions</button>
+          <button type="button" class="chip" data-topic="Astrobiology & Alien Worlds">🛸 Astrobiology</button>
+          <button type="button" class="chip" data-topic="Artificial Intelligence & Cybernetics">💻 AI & Cybernetics</button>
+          <button type="button" class="chip" data-topic="Astrophysics & Supernovas">⚡ Supernovas</button>
+          <button type="button" class="chip" data-topic="Cosmic Mythology & Stars">📜 Constellations</button>
+        </div>
+
+        <!-- Custom Topic Input -->
+        <div class="form-group">
+          <label class="form-label" for="topic-input">Destination Topic</label>
+          <div class="input-glow-wrapper">
+            <span class="input-icon">🔭</span>
+            <input
+              type="text"
+              id="topic-input"
+              class="cosmic-input"
+              placeholder="e.g. James Webb Telescope, General Relativity, Mars Rovers..."
+              autocomplete="off"
+            >
+          </div>
+        </div>
+
+        <!-- Difficulty Control -->
+        <div class="form-group">
+          <label class="form-label">Flight Difficulty</label>
+          <div class="segmented-control">
+            <button type="button" class="segmented-btn" data-difficulty="easy">🟢 Novice</button>
+            <button type="button" class="segmented-btn active" data-difficulty="medium">🟡 Explorer</button>
+            <button type="button" class="segmented-btn" data-difficulty="hard">🔴 Commander</button>
+          </div>
+        </div>
+
+        <!-- Question Count Control -->
+        <div class="form-group">
+          <label class="form-label">Mission Depth</label>
+          <div class="segmented-control">
+            <button type="button" class="segmented-btn" data-count="3">3 Sectors</button>
+            <button type="button" class="segmented-btn active" data-count="5">5 Sectors</button>
+            <button type="button" class="segmented-btn" data-count="10">10 Sectors</button>
+          </div>
+        </div>
+
+        <!-- Launch CTA -->
+        <button type="button" class="btn-launch" id="start-btn">
+          <span>🚀</span> Launch Mission
+        </button>
+      </section>
+
+      <!-- ==========================================
+           2. QUIZ SCREEN (FLIGHT TRANSMISSION)
+           ========================================== -->
+      <section id="quiz-screen" class="hidden">
+        <div class="quiz-meta-row">
+          <div class="sector-indicator" id="sector-indicator">SECTOR 01 OF 05</div>
+          <div class="meta-badges">
+            <span class="difficulty-pill medium" id="difficulty-pill">EXPLORER</span>
+            <span class="fallback-pill hidden" id="fallback-notice" title="Telemetry fallback active">⚡ Offline Bank</span>
+          </div>
+        </div>
+
+        <h2 class="question-heading" id="question-heading">Loading deep space transmission...</h2>
+
+        <!-- Interactive Glass Option Cards -->
+        <div class="options-grid" id="options-container">
+          <!-- Rendered dynamically by app.js -->
+        </div>
+
+        <!-- Real-time Feedback & Educational Drawer -->
+        <div class="feedback-box hidden" id="feedback-box">
+          <div class="feedback-header" id="feedback-header">✨ Trajectory Confirmed</div>
+          <div class="feedback-explanation" id="feedback-explanation">Explanation data will appear here.</div>
+          <button type="button" class="btn-next hidden" id="next-btn">
+            Proceed to Next Sector <span>→</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- ==========================================
+           3. DEBRIEF SCREEN (MISSION COMPLETE)
+           ========================================== -->
+      <section id="debrief-screen" class="hidden debrief-panel">
+        <div class="rank-badge-large" id="rank-badge">👑 Galactic Grandmaster</div>
+        <p class="panel-subtitle">Mission Orbit Accomplished</p>
+        <div class="score-display-huge" id="final-score-huge">5 / 5</div>
+
+        <div class="high-score-row" id="high-score-badge" style="display:none; margin: 0 auto 18px;">
+          🏆 New All-Time Galactic High Score!
+        </div>
+
+        <!-- Telemetry Performance Grid -->
+        <div class="debrief-metrics-grid">
+          <div class="metric-card">
+            <span class="metric-val" id="metric-accuracy">100%</span>
+            <span class="metric-lbl">Orbital Accuracy</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-val" id="metric-streak">5x 🔥</span>
+            <span class="metric-lbl">Max Streak</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-val" id="metric-topic">Cosmic</span>
+            <span class="metric-lbl">Expedition</span>
+          </div>
+        </div>
+
+        <!-- Action Controls -->
+        <div class="debrief-actions">
+          <button type="button" class="btn-secondary" id="replay-btn">
+            🔄 Replay Topic
+          </button>
+          <button type="button" class="btn-launch" style="margin-top:0;" id="new-mission-btn">
+            🚀 New Mission
+          </button>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- ES Module Controller -->
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>
