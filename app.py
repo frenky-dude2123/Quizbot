@@ -20,6 +20,8 @@ app = Flask(__name__)
 
 API_BASE_URL = os.environ.get("VITE_API_BASE_URL", "/api")
 DEFAULT_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.6-flash")
+LLM_PROVIDER = os.environ.get("LLM_PROVIDER", "gemini")  # "gemini" or "ollama"
+LLM_PROVIDER = os.environ.get("LLM_PROVIDER", "gemini")  # "gemini" or "ollama"
 _genai_model = DEFAULT_MODEL
 _genai_client = None
 

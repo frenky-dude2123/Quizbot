@@ -147,7 +147,19 @@ class QuizApp {
     this.initStarfield();
   }
 
+  async checkApiHealth() {
+    try {
+      const res = await api.checkHealth();
+      this.dom.apiStatusDot.style.backgroundColor = '#10B981';
+      this.dom.apiStatusText.textContent = 'AI Core Online';
+    } catch (err) {
+      this.dom.apiStatusDot.style.backgroundColor = '#EF4444';
+      this.dom.apiStatusText.textContent = 'Core Offline';
+    }
+  }
+
   cacheDom() {
+
     this.dom = {
       canvas: document.getElementById('starfield'),
       audioBtn: document.getElementById('audio-toggle-btn'),
@@ -208,8 +220,53 @@ class QuizApp {
     };
   }
 
+  bindEvents() {
+    // Launch Mission button
+    if (this.dom.startBtn) {
+      this.dom.startBtn.addEventListener('click', () => this.startMission());
+    }
+
+    // Difficulty selection buttons
+    this.dom.diffBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        this.dom.diffBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        this.difficulty = btn.dataset.difficulty;
+      });
+    });
+
+    // Mission depth (question count) buttons
+    this.dom.countBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        this.dom.countBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        this.totalQuestions = parseInt(btn.dataset.count, 10);
+      });
+    });
+
+    // Topic quick-pick chips
+    this.dom.topicChips.forEach(chip => {
+      chip.addEventListener('click', () => {
+        this.dom.topicInput.value = chip.dataset.topic;
+      });
+    });
+
+    // Replay / New Mission buttons (debrief screen)
+    if (this.dom.replayBtn) {
+      this.dom.replayBtn.addEventListener('click', () => this.startMission());
+    }
+    if (this.dom.newMissionBtn) {
+      this.dom.newMissionBtn.addEventListener('click', () => this.showScreen('setup'));
+    }
+
+    // Chat button and chat-specific events
+    this.initChatButton();
+    this.bindChatEvents();
+  }
+
   initStarfield() {
-    if (this.dom.canvas) {
+
+    if (this.dom.canvas && typeof CosmicStarfield !== 'undefined') {
       new CosmicStarfield(this.dom.canvas);
     }
   }
@@ -228,7 +285,7 @@ class QuizApp {
 
   initChatButton() {
     if (!this.dom.chatToggleBtn) return;
-    
+
     this.dom.chatToggleBtn.addEventListener('click', () => {
       this.audio.playClick();
       this.showChatScreen();
@@ -261,22 +318,22 @@ class QuizApp {
 
   addMessageToHistory(role, text, isLoading = false) {
     if (!this.dom.chatMessages) return;
-    
+
     const messageDiv = document.createElement('div');
     messageDiv.className = `chat-message ${role}-message`;
-    
+
     const avatar = role === 'user' ? '👤' : '🤖';
-    
+
     const contentDiv = document.createElement('div');
     contentDiv.className = 'message-content';
-    
+
     const avatarSpan = document.createElement('span');
     avatarSpan.className = 'message-avatar';
     avatarSpan.textContent = avatar;
-    
+
     const bubbleDiv = document.createElement('div');
     bubbleDiv.className = 'message-bubble';
-    
+
     if (isLoading) {
       bubbleDiv.innerHTML = `
         <div class="loading-message">
@@ -289,11 +346,11 @@ class QuizApp {
       p.textContent = text;
       bubbleDiv.appendChild(p);
     }
-    
+
     contentDiv.appendChild(avatarSpan);
     contentDiv.appendChild(bubbleDiv);
     messageDiv.appendChild(contentDiv);
-    
+
     this.dom.chatMessages.appendChild(messageDiv);
     this.scrollChatToBottom();
   }
@@ -307,34 +364,34 @@ class QuizApp {
   async sendChatMessage() {
     const message = this.dom.chatInput.value.trim();
     if (!message || !this.chatSessionId) return;
-    
+
     // Add user message to UI immediately
     this.addMessageToHistory('user', message);
     this.dom.chatInput.value = '';
     this.dom.chatInput.disabled = true;
     this.dom.chatSendBtn.disabled = true;
-    
+
     // Add loading indicator
     this.addMessageToHistory('bot', '', true);
-    
+
     try {
       const res = await api.chat(this.chatSessionId, message);
-      
+
       // Replace loading message with actual response
       const messages = this.dom.chatMessages.querySelectorAll('.chat-message.bot-message');
       if (messages.length > 0) {
         messages[messages.length - 1].remove();
       }
-      
+
       this.addMessageToHistory('bot', res.response);
-      
+
     } catch (err) {
       // Replace loading message with error
       const messages = this.dom.chatMessages.querySelectorAll('.chat-message.bot-message');
       if (messages.length > 0) {
         messages[messages.length - 1].remove();
       }
-      
+
       this.showError(`Chat error: ${err.message}`);
       this.addMessageToHistory('bot', `Error: ${err.message}`);
     } finally {
@@ -352,7 +409,7 @@ class QuizApp {
         }
       });
     }
-    
+
     if (this.dom.chatSendBtn) {
       this.dom.chatSendBtn.addEventListener('click', () => {
         this.sendChatMessage();
@@ -628,7 +685,7 @@ class QuizApp {
     clickedBtn.disabled = true;
 
     // Show loading state with appropriate message
-    const loadingMessage = clickedBtn.querySelector('.option-text').textContent.includes('correct', -1) ? 
+    const loadingMessage = clickedBtn.querySelector('.option-text').textContent.includes('correct', -1) ?
       'Verifying your answer...' : 'Checking answer...';
     this.startLoading(loadingMessage);
 
@@ -742,3 +799,6 @@ class QuizApp {
     return false;
   }
 }
+document.addEventListener('DOMContentLoaded', () => {
+  new QuizApp();
+});
