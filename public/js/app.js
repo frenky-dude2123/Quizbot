@@ -99,19 +99,20 @@ class CosmicAudio {
     this.init();
     if (!this.ctx) return;
     try {
-      const fanfare = [392.00, 523.25, 659.25, 783.99, 1046.50];
-      fanfare.forEach((freq, i) => {
+      const notes = [523.25, 659.25, 783.99, 659.25, 783.99, 880.0];
+      notes.forEach((freq, i) => {
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
-        const start = this.ctx.currentTime + i * 0.08;
+        const startTime = this.ctx.currentTime + i * 0.08;
         osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq, start);
-        gain.gain.setValueAtTime(0.15, start);
-        gain.gain.exponentialRampToValueAtTime(0.001, start + 0.5);
+        osc.frequency.setValueAtTime(freq, startTime);
+        gain.gain.setValueAtTime(0, startTime);
+        gain.gain.linearRampToValueAtTime(0.15, startTime + 0.03);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.4);
         osc.connect(gain);
         gain.connect(this.ctx.destination);
-        osc.start(start);
-        osc.stop(start + 0.52);
+        osc.start(startTime);
+        osc.stop(startTime + 0.42);
       });
     } catch {
       // ignore
@@ -119,125 +120,6 @@ class CosmicAudio {
   }
 }
 
-/* ==========================================================================
-   STARFIELD CANVAS ANIMATION (Twinkling Stardust & Meteors)
-   ========================================================================== */
-class CosmicStarfield {
-  constructor(canvas) {
-    this.canvas = canvas;
-    this.ctx = canvas.getContext('2d');
-    this.stars = [];
-    this.meteors = [];
-    this.width = 0;
-    this.height = 0;
-    this.animationId = null;
-
-    this.resize();
-    window.addEventListener('resize', () => this.resize());
-    this.initStars();
-    this.start();
-  }
-
-  resize() {
-    this.width = this.canvas.width = window.innerWidth;
-    this.height = this.canvas.height = window.innerHeight;
-  }
-
-  initStars() {
-    const starCount = Math.floor((this.width * this.height) / 5500);
-    this.stars = [];
-    for (let i = 0; i < starCount; i++) {
-      this.stars.push({
-        x: Math.random() * this.width,
-        y: Math.random() * this.height,
-        radius: Math.random() * 1.4 + 0.3,
-        baseAlpha: Math.random() * 0.6 + 0.2,
-        twinkleSpeed: Math.random() * 0.02 + 0.005,
-        twinkleAngle: Math.random() * Math.PI * 2,
-        color: ['#ffffff', '#e0f2fe', '#f3e8ff', '#fef3c7'][Math.floor(Math.random() * 4)],
-      });
-    }
-  }
-
-  createMeteor() {
-    if (this.meteors.length >= 2) return;
-    this.meteors.push({
-      x: Math.random() * this.width * 0.8,
-      y: 0,
-      length: Math.random() * 70 + 40,
-      speed: Math.random() * 7 + 8,
-      angle: Math.PI / 4 + (Math.random() * 0.2 - 0.1),
-      opacity: 1,
-      decay: Math.random() * 0.015 + 0.01,
-    });
-  }
-
-  start() {
-    let lastMeteorTime = Date.now();
-    const animate = () => {
-      this.ctx.clearRect(0, 0, this.width, this.height);
-
-      // Draw Twinkling Stars
-      for (const s of this.stars) {
-        s.twinkleAngle += s.twinkleSpeed;
-        const alpha = s.baseAlpha + Math.sin(s.twinkleAngle) * 0.25;
-        this.ctx.fillStyle = s.color;
-        this.ctx.globalAlpha = Math.max(0.1, Math.min(1, alpha));
-        this.ctx.beginPath();
-        this.ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2);
-        this.ctx.fill();
-      }
-
-      // Handle Meteors
-      const now = Date.now();
-      if (now - lastMeteorTime > 4500 && Math.random() < 0.35) {
-        this.createMeteor();
-        lastMeteorTime = now;
-      }
-
-      for (let i = this.meteors.length - 1; i >= 0; i--) {
-        const m = this.meteors[i];
-        m.x += Math.cos(m.angle) * m.speed;
-        m.y += Math.sin(m.angle) * m.speed;
-        m.opacity -= m.decay;
-
-        if (m.opacity <= 0 || m.x > this.width || m.y > this.height) {
-          this.meteors.splice(i, 1);
-          continue;
-        }
-
-        this.ctx.save();
-        const grad = this.ctx.createLinearGradient(
-          m.x, m.y,
-          m.x - Math.cos(m.angle) * m.length,
-          m.y - Math.sin(m.angle) * m.length
-        );
-        grad.addColorStop(0, `rgba(255, 255, 255, ${m.opacity})`);
-        grad.addColorStop(0.3, `rgba(56, 189, 248, ${m.opacity * 0.8})`);
-        grad.addColorStop(1, `rgba(99, 102, 241, 0)`);
-
-        this.ctx.strokeStyle = grad;
-        this.ctx.lineWidth = 1.8;
-        this.ctx.beginPath();
-        this.ctx.moveTo(m.x, m.y);
-        this.ctx.lineTo(
-          m.x - Math.cos(m.angle) * m.length,
-          m.y - Math.sin(m.angle) * m.length
-        );
-        this.ctx.stroke();
-        this.ctx.restore();
-      }
-
-      this.ctx.globalAlpha = 1;
-      this.animationId = requestAnimationFrame(animate);
-    };
-    animate();
-  }
-}
-
-/* ==========================================================================
-   QUIZBOT APPLICATION CONTROLLER
-   ========================================================================== */
 class QuizApp {
   constructor() {
     this.audio = new CosmicAudio();
@@ -256,6 +138,7 @@ class QuizApp {
     this.loadingMessage = null;
     this.loadingIndicator = null;
     this.selectedOptionLetter = null;
+    this.chatSessionId = null;
 
     this.cacheDom();
     this.bindEvents();
@@ -477,150 +360,6 @@ class QuizApp {
     }
   }
 
-  async checkApiHealth() {
-    try {
-      const res = await api.checkHealth();
-      if (res.status === 'ok') {
-        if (res.api_key_configured) {
-          this.dom.apiStatusDot.className = 'status-dot';
-          this.dom.apiStatusText.textContent = 'AI Core Online';
-        } else {
-          this.dom.apiStatusDot.className = 'status-dot warning';
-          this.dom.apiStatusText.textContent = 'Cosmic Bank Active';
-        }
-      }
-    } catch {
-      this.dom.apiStatusDot.className = 'status-dot warning';
-      this.dom.apiStatusText.textContent = 'Offline Safe Mode';
-    }
-  }
-
-  bindEvents() {
-    // Topic chips
-    this.dom.topicChips.forEach(chip => {
-      chip.addEventListener('click', () => {
-        this.audio.playClick();
-        this.dom.topicChips.forEach(c => c.classList.remove('active'));
-        chip.classList.add('active');
-        this.dom.topicInput.value = chip.dataset.topic || chip.textContent.trim();
-        this.dom.topicInput.focus();
-      });
-    });
-
-    // Difficulty selection
-    this.dom.diffBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        this.audio.playClick();
-        this.dom.diffBtns.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        this.difficulty = btn.dataset.difficulty;
-      });
-    });
-
-    // Question count selection
-    this.dom.countBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        this.audio.playClick();
-        this.dom.countBtns.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        this.totalQuestions = parseInt(btn.dataset.count, 10) || 5;
-      });
-    });
-
-    // Launch & Restart Buttons
-    this.dom.startBtn.addEventListener('click', () => this.startMission());
-    this.dom.replayBtn.addEventListener('click', () => this.replayMission());
-    this.dom.newMissionBtn.addEventListener('click', () => this.showScreen('setup'));
-
-    // Keyboard Hotkeys
-    window.addEventListener('keydown', (e) => this.handleKeyboard(e));
-  }
-
-  handleKeyboard(e) {
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
-      if (e.key === 'Enter' && this.dom.setupScreen && !this.dom.setupScreen.classList.contains('hidden')) {
-        this.startMission();
-      }
-      return;
-    }
-
-    // Next question on Enter or Space
-    if ((e.key === 'Enter' || e.key === ' ') && this.questionAnswered && !this.dom.nextBtn.classList.contains('hidden')) {
-      e.preventDefault();
-      this.dom.nextBtn.click();
-      return;
-    }
-
-    // Option hotkeys: A, B, C, D or 1, 2, 3, 4
-    if (!this.questionAnswered && this.activeOptions.length > 0) {
-      const key = e.key.toUpperCase();
-      let index = -1;
-      if (['A', 'B', 'C', 'D'].includes(key)) {
-        index = key.charCodeAt(0) - 65;
-      } else if (['1', '2', '3', '4'].includes(key)) {
-        index = parseInt(key, 10) - 1;
-      }
-
-      if (index >= 0 && index < this.activeOptions.length) {
-        e.preventDefault();
-        const btn = this.dom.optionsContainer.children[index];
-        if (btn && !btn.disabled) {
-          const letter = this.activeOptions[index].letter;
-          this.submitOption(letter, btn);
-        }
-      }
-    }
-  }
-
-  showScreen(name) {
-    this.clearError();
-    const screens = ['setup', 'quiz', 'debrief'];
-    screens.forEach(s => {
-      const el = this.dom[`${s}Screen`];
-      if (el) el.classList.toggle('hidden', s !== name);
-    });
-
-    if (name === 'setup') {
-      this.sessionId = null;
-      this.currentQuestion = 0;
-      this.score = 0;
-      this.streak = 0;
-      this.updateHud();
-      this.dom.progressBar.style.width = '0%';
-    }
-  }
-
-  startLoading(message = null) {
-    this.clearError();
-    this.loadingMessage = message;
-    if (this.dom.loadingIndicator) {
-      this.dom.loadingIndicator.classList.remove('hidden');
-      this.updateLoadingText(message);
-    }
-    this.dom.nextBtn.disabled = true;
-    this.disableAllOptions(true);
-  }
-
-  stopLoading() {
-    this.loadingMessage = null;
-    if (this.dom.loadingIndicator) {
-      this.dom.loadingIndicator.classList.add('hidden');
-      this.updateLoadingText(null);
-    }
-    this.enableAllOptions();
-    this.dom.nextBtn.disabled = false;
-  }
-
-  updateLoadingText(message) {
-    if (this.dom.loadingText) {
-      if (message) {
-        this.dom.loadingText.textContent = message;
-      } else {
-        this.dom.loadingText.textContent = '';
-      }
-    }
-  }
-
   showError(msg) {
     this.dom.errorText.textContent = msg;
     this.dom.errorBanner.classList.remove('hidden');
@@ -677,6 +416,8 @@ class QuizApp {
   enableAllOptions() {
     this.disableAllOptions(false);
   }
+
+  async startMission() {
     this.clearError();
     this.topic = this.dom.topicInput.value.trim();
 
@@ -717,7 +458,93 @@ class QuizApp {
     this.startMission();
   }
 
-    renderQuestionData(data) {
+  showScreen(name) {
+    this.clearError();
+    const screens = ['setup', 'quiz', 'debrief', 'chat'];
+    screens.forEach(s => {
+      const el = this.dom[`${s}Screen`];
+      if (el) el.classList.toggle('hidden', s !== name);
+    });
+
+    if (name === 'setup') {
+      this.sessionId = null;
+      this.currentQuestion = 0;
+      this.score = 0;
+      this.streak = 0;
+      this.updateHud();
+      this.dom.progressBar.style.width = '0%';
+    }
+
+    // Clear chat state when leaving chat screen
+    if (name !== 'chat') {
+      this.chatSessionId = null;
+      this.dom.chatStatusText.textContent = 'Disconnected';
+      this.dom.chatStatus.classList.remove('connecting', 'error');
+      this.dom.chatInput.disabled = true;
+      this.dom.chatSendBtn.disabled = true;
+    }
+  }
+
+  updateHud() {
+    this.dom.headerScoreVal.textContent = this.score;
+
+    if (this.streak > 1) {
+      this.dom.headerStreakBadge.style.display = 'inline-flex';
+      this.dom.headerStreakCount.textContent = `${this.streak}x`;
+    } else {
+      this.dom.headerStreakBadge.style.display = 'none';
+    }
+
+    if (this.totalQuestions > 0 && this.currentQuestion > 0) {
+      const pct = Math.min(100, Math.round(((this.currentQuestion - 1) / this.totalQuestions) * 100));
+      this.dom.progressBar.style.width = `${pct}%`;
+    }
+  }
+
+  handleKeyboard(e) {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+      if (e.key === 'Enter' && this.dom.setupScreen && !this.dom.setupScreen.classList.contains('hidden')) {
+        this.startMission();
+      }
+      return;
+    }
+
+    // Next question on Enter or Space (only in quiz screen)
+    if ((e.key === 'Enter' || e.key === ' ') && !this.dom.quizScreen.classList.contains('hidden') && this.questionAnswered && !this.dom.nextBtn.classList.contains('hidden')) {
+      e.preventDefault();
+      this.dom.nextBtn.click();
+      return;
+    }
+
+    // Chat input on Enter (only in chat screen)
+    if (e.key === 'Enter' && !this.dom.chatScreen.classList.contains('hidden') && this.dom.chatInput && !this.dom.chatInput.disabled) {
+      e.preventDefault();
+      this.sendChatMessage();
+      return;
+    }
+
+    // Option hotkeys: A, B, C, D or 1, 2, 3, 4 (only in quiz screen)
+    if (!this.questionAnswered && this.activeOptions.length > 0 && !this.dom.chatScreen.classList.contains('hidden')) {
+      const key = e.key.toUpperCase();
+      let index = -1;
+      if (['A', 'B', 'C', 'D'].includes(key)) {
+        index = key.charCodeAt(0) - 65;
+      } else if (['1', '2', '3', '4'].includes(key)) {
+        index = parseInt(key, 10) - 1;
+      }
+
+      if (index >= 0 && index < this.activeOptions.length) {
+        e.preventDefault();
+        const btn = this.dom.optionsContainer.children[index];
+        if (btn && !btn.disabled) {
+          const letter = this.activeOptions[index].letter;
+          this.submitOption(letter, btn);
+        }
+      }
+    }
+  }
+
+  renderQuestionData(data) {
     this.questionAnswered = false;
     this.isTransitioning = false;
     this.updateHud();
@@ -915,8 +742,3 @@ class QuizApp {
     return false;
   }
 }
-
-// Bootstrap Application
-document.addEventListener('DOMContentLoaded', () => {
-  window.quizApp = new QuizApp();
-});
